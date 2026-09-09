@@ -9,11 +9,12 @@
 --- stays the fallback if `ffi.load` turns out not to be reachable from the UCP
 --- cffi module.
 ---
---- NOT YET VERIFIED IN GAME. Specifically:
----   * whether `modules.cffi` exposes `ffi.load`
----   * whether it accepts `__stdcall` in a cdef (the game is 32-bit, so the
----     calling convention is not optional here)
---- Both are the first thing to check when this reaches a real game process.
+--- Both prerequisites are confirmed against the cffi module's source:
+---   * `modules.cffi:cffi()` returns the raw cffi-lua table, not the reduced
+---     `CFFIInterface` wrapper, so `load` and `string` are reachable.
+---   * cffi-lua's parser maps `__stdcall` to `C_FUNC_STDCALL` rather than
+---     discarding it, which matters because the game is 32-bit.
+--- Not yet run against a real game process.
 
 local M = {}
 

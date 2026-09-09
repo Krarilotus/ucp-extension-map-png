@@ -44,6 +44,9 @@ Working and tested offline:
   `Logic1.hpp` / `Logic2.hpp`
 * height and terrain export/import, round-trip tested
 
+Verified against the cffi module's source (see the plan, §7): `ffi.load`, `__stdcall`
+and callbacks are all available, so the GDI+ route stands and no native DLL is needed.
+
 Written but not yet run in the game:
 
 * the GDI+ PNG bindings

@@ -7,13 +7,18 @@
 --- then hand it to `Menu:addMenuItem`, which grows the game's item array for us
 --- rather than requiring a patch of the static arrays.
 ---
---- NOT YET VERIFIED IN GAME:
----   * the exact positions -- see mappng/ui/screens.lua
----   * whether callbacks can be created from the framework's main Lua state via
----     `modules.cffi`, or whether these have to live in a LuaJIT state the way
----     automarket's do. If the latter, this file moves into a `ui/` subtree
----     loaded with `modules.ui:createMenuFromFile`, and the actions get invoked
----     through `ui:sendEvent`.
+--- Callbacks from the main Lua state are supported: `modules.cffi` is a build of
+--- cffi-lua, which implements LuaJIT-compatible callbacks (libffi closures) and
+--- parses `__cdecl` as a real calling convention rather than ignoring it.
+---
+--- Note that automarket puts its equivalent callbacks in a LuaJIT state
+--- instead. If these turn out to misbehave -- libffi closures are heavier than
+--- LuaJIT's, and this render function runs every frame -- the fallback is to
+--- move this file into a `ui/` subtree loaded with
+--- `modules.ui:createMenuFromFile` and invoke the actions via `ui:sendEvent`,
+--- which is the route automarket already proves works.
+---
+--- NOT YET VERIFIED IN GAME: the exact positions -- see mappng/ui/screens.lua.
 
 local screens = require("mappng.ui.screens")
 local icons = require("mappng.ui.icons")
@@ -25,6 +30,18 @@ local MENU_ITEM_TYPE = 0x02000003
 local RENDER_FUNCTION_TYPE_SIMPLE = 0x1
 
 local state = { items = {}, callbacks = {} }
+
+--- Keeps a callback alive for the lifetime of the module.
+---
+--- The game calls these from its render loop long after `install` returns, so
+--- letting one be collected is a crash. The LuaJIT states have a global
+--- `registerObject` for this, but that is defined in the luajit module's
+--- `common/code.lua` and does *not* exist in the framework's main Lua state,
+--- which is where this file runs -- so we anchor them ourselves.
+local function anchor(callback)
+  state.callbacks[#state.callbacks + 1] = callback
+  return callback
+end
 
 --- Builds the render callback for one action.
 local function makeRender(ffi, game, action)
@@ -51,8 +68,7 @@ local function makeRender(ffi, game, action)
     end
   end)
 
-  registerObject(render)
-  return render
+  return anchor(render)
 end
 
 --- Builds the click callback for one action.
@@ -65,8 +81,7 @@ local function makeAction(ffi, action, onClick)
     end
   end)
 
-  registerObject(handler)
-  return handler
+  return anchor(handler)
 end
 
 --- Attaches all four buttons to every target screen.
@@ -85,9 +100,6 @@ function M.install(ffi, game, onClick)
         local position = screens.iconPosition(screen, index)
         local render = makeRender(ffi, game, action)
         local handler = makeAction(ffi, action, onClick)
-
-        state.callbacks[#state.callbacks + 1] = render
-        state.callbacks[#state.callbacks + 1] = handler
 
         menu:addMenuItem({
           menuItemType = MENU_ITEM_TYPE,
