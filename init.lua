@@ -90,6 +90,7 @@ function mappng:access()
   return {
     actions = actions,
     screens = screens,
+    buttons = buttons,
     icons = icons,
     filedialog = filedialog,
   }

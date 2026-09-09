@@ -101,6 +101,12 @@ function M.install(ffi, game, onClick)
         local render = makeRender(ffi, game, action)
         local handler = makeAction(ffi, action, onClick)
 
+        -- Where addMenuItem is about to put this item. Recorded so the row can
+        -- be moved later without a restart. The Menu object is stored rather
+        -- than the item pointer, because reallocateMenuItems replaces the
+        -- array wholesale.
+        local itemIndex = menu.menuItemsIndex
+
         menu:addMenuItem({
           menuItemType = MENU_ITEM_TYPE,
           menuItemRenderFunctionType = RENDER_FUNCTION_TYPE_SIMPLE,
@@ -116,11 +122,19 @@ function M.install(ffi, game, onClick)
           },
         })
 
-        state.items[#state.items + 1] = { screen = screen.name, action = action.key }
+        state.items[#state.items + 1] = {
+          screen = screen,
+          action = action.key,
+          actionIndex = index,
+          menu = menu,
+          itemIndex = itemIndex,
+        }
       end
 
-      log(INFO, string.format("map-png: added 4 buttons to menu %d (%s)",
-        screen.menuID, screen.name))
+      local origin = screens.resolveMinimap(screen)
+      log(INFO, string.format(
+        "map-png: added 4 buttons to menu %d (%s) at (%d,%d), position from %s",
+        screen.menuID, screen.name, origin.x, origin.y, origin.source))
     end)
 
     if not ok then
@@ -130,6 +144,34 @@ function M.install(ffi, game, onClick)
   end
 
   return #state.items
+end
+
+--- Moves an already-installed row to wherever `screens` now says it goes.
+---
+--- Called by `screens.setMinimap` / `screens.nudge`, so the position can be
+--- dialled in with the editor screen open instead of one restart per guess.
+---
+---@param menuID number|nil all screens when omitted
+---@return number how many buttons moved
+function M.reposition(menuID)
+  local moved = 0
+
+  for _, entry in ipairs(state.items) do
+    if menuID == nil or entry.screen.menuID == menuID then
+      local position = screens.iconPosition(entry.screen, entry.actionIndex)
+      local item = entry.menu.menuItems[entry.itemIndex]
+      item.position.position.x = position.x
+      item.position.position.y = position.y
+      moved = moved + 1
+    end
+  end
+
+  return moved
+end
+
+--- The installed buttons, for inspection from the console.
+function M.installed()
+  return state.items
 end
 
 return M
