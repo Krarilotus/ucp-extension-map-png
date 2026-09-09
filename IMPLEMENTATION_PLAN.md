@@ -44,8 +44,8 @@ performs through `pymem` is a plain pointer dereference for us. Concretely:
 
 The only remaining external dependency is **PNG encode/decode**, and Windows ships that:
 `gdiplus.dll` is loaded into every GUI process anyway. We call its flat C API through
-the UCP `cffi` (LuaJIT FFI) module. No Python, no OpenCV, no numpy, no extra DLL to
-build or sign.
+the UCP `cffi` module — which is cffi-lua, not LuaJIT; see §7 for what that does and
+does not give us. No Python, no OpenCV, no numpy, no extra DLL to build or sign.
 
 > **Bonus over `sourcehold`:** because we are inside the process we can call the game's
 > *own* refresh routines after an import (`forceUpdateLogicalAndMiscDisplayLayers`,
@@ -145,12 +145,9 @@ GdipSaveImageToFile             (PNG encoder CLSID {557CF406-1A04-11D3-9A73-0000
 GdipDisposeImage
 ```
 
-**Verification step, do this first:** confirm `ffi.load` is reachable from the UCP `cffi`
-module (`gynt/ucp-extension-cffi`). If the sandbox blocks it, fall back to a ~200-line
-native `mapImageIO.dll` using WIC — the exact pattern of
-`ucp_gmResourceModifier/loadImageAsInterfaceResource.cpp`, which already does WIC decode
-into a 16bpp buffer. That fallback costs an MSVC build and module signing, which is why
-GDI+ is tried first.
+**Verified — see §7.** `ffi.load`, `__stdcall` and callbacks are all available. The WIC
+fallback (a ~200-line native `mapImageIO.dll`, the pattern of
+`ucp_gmResourceModifier/loadImageAsInterfaceResource.cpp`) is no longer needed.
 
 Size handling: only `400x400` is accepted on import (the game's tile array is always
 allocated at 400x400 regardless of the playable map size — this is why the editor shows
@@ -290,7 +287,7 @@ instance reused for all four actions (mode is a field on the module state).
 
 ## 3. Known open items
 
-1. **`ffi.load` availability** in the UCP `cffi` module — gates M2. Verify first.
+1. ~~**`ffi.load` availability** in the UCP `cffi` module~~ — confirmed, see §7.
 2. **GM slots for the button icons** — gates M5b, not M5.
 3. **Exact menu ID + coordinates** for both screens — the M4 discovery task.
 4. **`discoverMapFiles` side effects** on the shared map list — has a cheap fallback.
@@ -368,3 +365,54 @@ button layout depends on.
    open, and fill in `minimap` in `mappng/ui/screens.lua`.
 3. Export a vanilla map, re-import it, and confirm the map is unchanged. That validates
    M1 through M4 end to end.
+
+---
+
+## 7. FFI capability check — confirmed
+
+The one thing the whole GDI+ approach rested on. Checked against the cffi module's
+own source rather than assumed.
+
+**The module is not LuaJIT.** `modules.cffi` is a build of
+[cffi-lua](https://github.com/q66/cffi-lua) — a libffi-based FFI for stock Lua, aiming
+at LuaJIT-FFI compatibility. UCP uses the fork `gynt/cffi-lua`, branch `ucp-extension`,
+which adds only two commits: a try/except workaround for an access violation during GC
+of cdata, and a settings interface for the debug options in `options.yml`. No API is
+removed.
+
+**The full API is reachable.** `init.lua` defines a reduced `CFFIInterface` class
+(cdef, cast, addressof, new, sizeof, copy, fill, tonumber) but never returns it — it
+exists for the language server. The accessor is:
+
+```lua
+local dll = require("cffi.dll")
+function cffi:cffi() return dll end
+```
+
+so `modules.cffi:cffi()` hands back the raw cffi-lua table, including everything the
+wrapper does not list.
+
+| Needed for | Available |
+| --- | --- |
+| `ffi.load("gdiplus")`, `ffi.load("kernel32")` | yes — `clib = cffi.load(name [, global])`, plus `cffi.C` |
+| `__stdcall` in a cdef (the game is 32-bit, so this is not optional) | yes — the parser maps `__stdcall` → `C_FUNC_STDCALL`; `__cdecl`, `__thiscall` and `__fastcall` too, and `__attribute__((stdcall))` syntax |
+| Callbacks for the button render/action handlers | yes — callback objects with `cb:free()` / `cb:set(func)` |
+| `ffi.string` for `GetModuleFileNameA`'s buffer | yes — `cffi.string(ptr [, len])` |
+
+**Two caveats that came out of the same check:**
+
+1. **`registerObject` does not exist in the main Lua state.** It is a global defined in
+   the luajit module's `common/code.lua`, so it is only there inside a LuaJIT state.
+   `extension-automarket` can call it because its callbacks live in one; ours do not.
+   `buttons.lua` anchors its callbacks in a module-local table instead. Letting a
+   callback be collected while the game still holds the pointer is a crash, so this
+   mattered.
+
+2. **cffi-lua callbacks are libffi closures**, heavier than LuaJIT's. The button render
+   function runs every frame. If that shows up as a cost, the fallback is the route
+   automarket already proves: move the callbacks into a LuaJIT state via
+   `modules.ui:createMenuFromFile` and drive them with `ui:sendEvent`. Worth watching,
+   not worth pre-optimising.
+
+Known cffi-lua limitations (bitfields, passing unions, structs containing unions) do not
+apply — every structure we touch is a flat array of scalars.
