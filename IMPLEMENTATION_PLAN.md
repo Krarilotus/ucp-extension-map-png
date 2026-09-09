@@ -1,0 +1,370 @@
+# `map-png` — Implementation Plan
+
+UCP3 module that adds four buttons under the minimap of the map-editor map screens,
+translating between the live map in memory and PNG files on disk.
+
+| Button | Direction | Data |
+| --- | --- | --- |
+| Import height map | PNG → game | `HeightLayer` + `DefaultHeightLayer` |
+| Export height map | game → PNG | `DefaultHeightLayer` |
+| Import terrain map | PNG → game | `LogicLayer` + `Logic2Layer` |
+| Export terrain map | game → PNG | `LogicLayer` + `Logic2Layer` |
+
+---
+
+## 0. The bundling question — answered
+
+**Nothing needs to be bundled.** The current workflow shells out to `sourcehold`
+(Python + pymem + numpy + OpenCV) which attaches to `Stronghold Crusader.exe` from
+*outside* and pokes its memory. That is only necessary because the tool is an external
+process.
+
+A UCP module already runs **inside** the game process. Every read/write `sourcehold`
+performs through `pymem` is a plain pointer dereference for us. Concretely:
+
+* `sourcehold` walks the map-section address table at `0x00B92A58 … 0x00B93208`
+  (16-byte `MapSectionAddress` records: `address, unknown, size, compressed, sectionId`)
+  to find section `1045`, `1005`, `1003`, `1037`.
+* Those sections are just fields of the `TileMapState` singleton at **`0x01A93208`**:
+
+  | sourcehold section | `TileMapState` field | offset | type | length |
+  | --- | --- | --- | --- | --- |
+  | `1003` | `LogicLayer` | `0x00165160` | `int[80400]` | 321600 |
+  | `1037` | `Logic2Layer` | `0x001B3FE0` | `byte[80400]` | 80400 |
+  | `1005` | `HeightLayer` | `0x0029FA30` | `byte[80400]` | 80400 |
+  | `1045` | `DefaultHeightLayer` | `0x002B3440` | `byte[80400]` | 80400 |
+
+  (`OpenSHC/src/OpenSHC/Map/TileMapState.hpp`, `OpenSHC/Globals/DAT_TileMapState.hpp`)
+
+  The two sources corroborate each other exactly: `sourcehold` hardcodes
+  `futureMapOrientation = 0x01FE7AA8`, and `0x01A93208 + 0x5548A0` is `0x01FE7AA8`.
+  So rather than hardcoding the base, `tilemap.lua` derives it from the section table
+  and asserts every layer offset agrees. A version mismatch then fails loudly instead
+  of writing 80400 tiles into the wrong allocation.
+
+The only remaining external dependency is **PNG encode/decode**, and Windows ships that:
+`gdiplus.dll` is loaded into every GUI process anyway. We call its flat C API through
+the UCP `cffi` (LuaJIT FFI) module. No Python, no OpenCV, no numpy, no extra DLL to
+build or sign.
+
+> **Bonus over `sourcehold`:** because we are inside the process we can call the game's
+> *own* refresh routines after an import (`forceUpdateLogicalAndMiscDisplayLayers`,
+> `forceUpdateTextureTilemap`, `forceUpdateGFXLayers` at `TileMapState+0x55486C…0x554874`,
+> and the `mapOrientation`/`DAT_FutureMapOrientation` pair at `+0x55489C`/`+0x5548A0`).
+> That replaces the `force_redraw()` hack and the commented-out `post_process_raw_height()`
+> mess in `sourcehold/tool/memory/map/height/__init__.py`.
+
+---
+
+## 1. Architecture
+
+```
+ucp-extension-map-png/
+  definition.yml          module manifest (type: module)
+  init.lua                enable/disable, wiring
+  options.yml             user options (folder name, palette, overwrite prompt)
+  mappng/
+    paths.lua             locates + creates <game>/mapping/
+    png/
+      gdiplus.lua         FFI bindings for the GDI+ flat API
+      init.lua            readPNG(path) -> {w,h,pixels}, writePNG(path, img)
+    map/
+      tilemap.lua         TileMapState pointer + typed layer views
+      diamond.lua         serialized-tile-index <-> 400x400 square mapping
+      palette.lua         the monsterfish1 palette + Logic1/Logic2 flag tables
+      height.lua          importHeight / exportHeight
+      terrain.lua         importTerrain / exportTerrain
+      refresh.lua         force the game to redraw after an import
+    ui/
+      icons.lua           button icon resources
+      buttons.lua         the four MenuItems + their render/action handlers
+      filedialog.lua      vanilla-styled PNG picker modal
+      screens.lua         which menus get the buttons, and where
+  resources/icons/*.png   the four button graphics, 32x18 opaque 8-bit palette PNG
+  tests/                  offline tests (lupa, Lua 5.4 -- the framework's own version)
+```
+
+**Dependencies** (`definition.yml`):
+`framework >= 3.0.7`, `ui >= 1.0.1`, `cffi ^1.0.0`, `luajit ^1.0.0`,
+and `gmResourceModifier >= 0.2.0` (only for milestone 5, custom button graphics).
+
+---
+
+## 2. Milestones
+
+### M1 — Map ↔ PNG core, no UI
+
+Everything that replaces `sourcehold memory map get/set`, driven from the UCP console
+so it can be validated before any UI exists.
+
+1. **`mappng/map/tilemap.lua`** — walk the section table, derive the `TileMapState` base
+   from it, cross-check it against every layer offset, and `ffi.cast` typed views.
+2. **`mappng/map/diamond.lua`** — port `TileLocationTranslator` /
+   `create_selection_matrix`. The game stores `80400` tiles in a diamond; the PNG is a
+   `400x400` square. The mapping is:
+   `i = row`, `j_adjusted = j + |((size/2)-1 if i < size/2 else size/2) - i|`.
+   Precompute a flat `int32[80400]` lookup `serializedIndex -> squarePixelIndex` once at
+   enable; both directions then cost one array read per tile.
+   Pixels outside the diamond are black on export and ignored on import — matching
+   `sourcehold`.
+3. **`mappng/map/height.lua`**
+   * *export*: `DefaultHeightLayer[k]` → grayscale byte at `lookup[k]`.
+   * *import*: grayscale byte → **both** `DefaultHeightLayer` and `HeightLayer`
+     (sourcehold writes `1045` and `1005`), then `refresh.lua`.
+4. **`mappng/map/palette.lua`** — port `logic1`, `logic2` and the `monsterfish1` hex
+   palette verbatim from `sourcehold/tool/memory/map/terrain/{logics,colors}.py`.
+   Keep the file **RGB**, not BGR — sourcehold works in BGR only because OpenCV does.
+   Cross-checked against `OpenSHC/Map/LogicHelpers/Logic1.hpp`; the flag values agree.
+5. **`mappng/map/terrain.lua`**
+   * *export*: for each `Logic1` flag in order, paint its palette colour; then overlay
+     `Logic2` values where `L_DEFAULT_EARTH_OR_TEXTURE (0x8000)` is set. Same two-pass
+     order as `get_terrain`, which is load-bearing — later flags overwrite earlier ones.
+   * *import*: read existing `LogicLayer` first and keep only `L_BORDER (0x10)` /
+     `L_BORDER_EDGE (0x20)` and the zero tiles, then OR in the flags for each matched
+     colour and write `Logic2Layer`. Identical to `set_terrain`.
+   * Unknown colours: `sourcehold` silently drops them. We log a warning with the count
+     and the first offending pixel — silent corruption of a map is worse than a slow import.
+6. **`mappng/map/refresh.lua`** — set the three `forceUpdate*` flags and copy
+   `mapOrientation` into `DAT_FutureMapOrientation`.
+
+**Exit criterion:** exporting a vanilla map and re-importing the PNG is a no-op
+(round-trip byte-identical on `DefaultHeightLayer`, and on `LogicLayer` modulo the
+flags the palette does not represent).
+
+### M2 — PNG I/O via GDI+
+
+`mappng/png/gdiplus.lua` binds the flat API:
+
+```
+GdiplusStartup / GdiplusShutdown
+GdipCreateBitmapFromFile        (path is UTF-16 — MultiByteToWideChar via kernel32)
+GdipGetImageWidth / GdipGetImageHeight
+GdipBitmapLockBits / GdipBitmapUnlockBits   (PixelFormat32bppARGB = 0x0026200A)
+GdipCreateBitmapFromScan0
+GdipSaveImageToFile             (PNG encoder CLSID {557CF406-1A04-11D3-9A73-0000F81EF32E})
+GdipDisposeImage
+```
+
+**Verification step, do this first:** confirm `ffi.load` is reachable from the UCP `cffi`
+module (`gynt/ucp-extension-cffi`). If the sandbox blocks it, fall back to a ~200-line
+native `mapImageIO.dll` using WIC — the exact pattern of
+`ucp_gmResourceModifier/loadImageAsInterfaceResource.cpp`, which already does WIC decode
+into a 16bpp buffer. That fallback costs an MSVC build and module signing, which is why
+GDI+ is tried first.
+
+Size handling: only `400x400` is accepted on import (the game's tile array is always
+allocated at 400x400 regardless of the playable map size — this is why the editor shows
+`400x400` in the corner and why `sourcehold` hardcodes it). Anything else is rejected
+with a clear message rather than being scaled.
+
+### M3 — The `mapping/` folder
+
+`mappng/paths.lua`:
+* Game directory = the directory of the running executable (`GetModuleFileNameA(NULL)`),
+  which is where UCP already anchors `ucp/`.
+* Ensure `<game>/mapping/` exists at module enable (`CreateDirectoryA`, ignore
+  `ERROR_ALREADY_EXISTS`).
+* Folder name configurable via `options.yml` (default `mapping`).
+* All four dialogs are hard-scoped to that folder. No path traversal out of it.
+
+### M4 — Buttons under the minimap
+
+**Target screens.** From `OpenSHC/Globals/`:
+
+| Screen | Menu global | Address | `MenuViewType` |
+| --- | --- | --- | --- |
+| Editor map properties (singleplayer / scenario) | `Menu_MapEditorProperties` | `0x00B97148` | `MVT_MAP_EDITOR_PROPERTIES = 17` |
+| Edit scenario | `Menu_EditScenario` | `0x00B982D0` | `MVT_EDIT_SCENARIO = 1002` |
+
+Your two screenshots are the singleplayer ("Einzelspieler – Invasion") and multiplayer
+("Mehrspieler") variants of the editor map screen. **Discovery task before coding M4:**
+dump `Menu:fromID(id).menuItems` for both screens at runtime and log
+`menuItemType / position / itemWidth / itemHeight` for every entry. That gives us
+(a) confirmation of which menu ID each screenshot is, and (b) the exact coordinates of
+the two existing round buttons under the minimap, which we anchor to.
+
+**Layout.** Screenshot 4 shows the black strip directly beneath the minimap divided into
+four slots. Four 32-px icons in a row is 128 px, i.e. exactly the minimap width — so the
+row is `minimapX + 32*n, minimapBottomY` for `n = 0..3`, flush with the minimap's left
+and right edges, no gaps. The only value we need from the discovery task is the
+minimap's origin and height on each screen.
+
+**Adding the items.** Same mechanism `extension-automarket` uses for its market button:
+
+```lua
+local Menu = modules.ui:access().api.ui.Menu
+local menu = Menu:fromID(17)
+menu:addMenuItem{
+  menuItemType = 0x02000003,          -- NORMAL_ELEMENT | PART_OF_INTERACTION_GROUP
+  menuItemRenderFunctionType = 0x1,
+  position = { position = { x = ..., y = ... } },
+  itemWidth = 32, itemHeight = 18,
+  callbackParameter = { parameter = <0..3> },
+  menuItemRenderFunction = { address = <ffi.cast'd render fn> },
+  menuItemActionHandler  = { address = <ffi.cast'd action fn> },
+}
+```
+
+`Menu:addMenuItem` reallocates the item array when full, so we do not have to patch the
+game's static arrays. Registered from a `hooks.registerHookCallback('afterInit', ...)`
+callback, as automarket does.
+
+Note the `ui` module's `patches.setButtonPropertiesPatch()` is what makes custom button
+properties stick — it is already applied when the `ui` module is enabled, and `ui` is our
+dependency.
+
+### M5 — Button graphics
+
+Your four graphics are in `resources/icons/`:
+`import_heightmap.png`, `export_heightmap.png`, `import_textures.png`,
+`export_textures.png` — 32×18, 8-bit palette, fully opaque (no `tRNS`), with the grey
+bevel already drawn in. So the icon *is* the whole button; no separate button background
+needs to be rendered underneath, and no colour-key/alpha handling is required.
+
+Path into the game:
+
+1. `gmResourceModifier:LoadResourceFromImage(path)` — builds an interface-type resource
+   from an image file via WIC, converting to the game's 16bpp format. Returns a resource id.
+2. `gmResourceModifier:SetGm(gmID, imageInGm, resourceId, 0)` — points a GM image slot at
+   our resource.
+3. `game.Rendering.renderGM(textureRenderCore, gmID, imageID, x, y)` in the item's render
+   function.
+
+*Open item:* pick the four GM slots. Needs a pass over the interface GM files for four
+32×18-or-larger images unused on these two screens. Until that is resolved, the render
+function falls back to `renderTextToScreenConst` with a short label — same stopgap
+automarket uses for its "Auto market" button — so M4 can be validated before M5 lands.
+
+`tools/inspect_icons.py` verifies the four files stay 32×18 and opaque, so a later
+redraw that silently changes the geometry is caught by the test suite rather than in-game.
+
+### M6 — The file dialogs
+
+A vanilla-styled `MenuModal` built with `modules.ui:access().api.ui.ModalMenu`, one
+instance reused for all four actions (mode is a field on the module state).
+
+* **Layout** copies the game's Save dialog (your screenshot 3): title bar, name field on
+  the left for save mode, scrollable name list on the right, `Speichern`/`Laden` +
+  `Zurück` buttons. `borderStyle = 512` gives the red double border.
+* **Listing files.** The game already has
+  `ResourceManager::discoverMapFiles(const char* pattern)` at `0x00477EE0` — it takes a
+  glob, `FindFirstFileA`s it, truncates each name at the first dot, sorts, and fills
+  `loadedMapNames` / `mapFileCounter`. Calling it with `"mapping\\*.png"` gives us a
+  sorted PNG list in the game's own format for free.
+  *Caveat:* it also fills the shared `ResourceManager` map list. We snapshot and restore
+  that state around the call so the real map browser is unaffected — verify this in
+  testing; if it turns out to be entangled, do our own `FindFirstFileA` loop from FFI
+  (~30 lines) and keep the vanilla list untouched.
+* **Save mode** reuses `MenuTextInputState` for the filename field; default name is the
+  current map name + `_height` / `_tex`, matching your
+  `map_goldwaters_height.png` / `map_goldwaters_tex.png` convention.
+* **Overwrite** raises the game's `YES_NO_DIALOG` (modal type 11) unless disabled in options.
+* We allocate our own modal menu IDs through `ui`'s manager
+  (`manager.getAvailableMenuID`) rather than reusing `SAVE_MAP (10)` / `LOAD_MAP (9)`,
+  so the real map save/load path is never touched.
+
+### M7 — Feedback and safety
+
+* Progress: an import/export of 80400 tiles is a few ms; no progress bar needed, but the
+  result gets a one-line confirmation in the bottom-left text display and a log line.
+* Errors (bad size, unreadable PNG, unknown colours, no write permission) surface as a
+  modal message rather than only in `ucp.log`.
+* Import is refused unless a map is actually loaded in the editor — guard on the editor
+  state before touching `TileMapState`.
+* Imports are not undoable by the game's editor undo. Documented; an optional
+  "snapshot before import" (keep the previous layers in a Lua buffer, one level) is
+  cheap and worth adding in M7.
+
+### M8 — Tests, packaging, docs
+
+* `tests/` mirrors `ucp_recorder`: `lupa` runs the pure-Lua logic (diamond mapping,
+  palette round-trip, terrain flag composition) against fixtures, with the FFI and game
+  layers stubbed. `unicorn` is not needed — we add no assembly.
+* Round-trip fixture: a synthetic 80400-tile layer → PNG → back, asserted byte-identical.
+* Palette test: every `logic1`/`logic2` name has a colour and no two names that can
+  co-occur share one.
+* CI: `.github/workflows/tests.yml` in the same shape as the recorder's.
+* `docs/` gets a short user guide; `locale/description-en.md` for the UCP GUI.
+
+---
+
+## 3. Known open items
+
+1. **`ffi.load` availability** in the UCP `cffi` module — gates M2. Verify first.
+2. **GM slots for the button icons** — gates M5b, not M5.
+3. **Exact menu ID + coordinates** for both screens — the M4 discovery task.
+4. **`discoverMapFiles` side effects** on the shared map list — has a cheap fallback.
+5. **Terrain import fidelity — resolved, see below.**
+6. **Map size.** Only 400×400 is handled, as in `sourcehold`. If you ever want the
+   smaller editor sizes to export cropped, that is a follow-up.
+
+## 4. Out of scope
+
+`sourcehold modify map --unlock` operates on `.map` files on disk, not on the live map,
+and has no natural home under the minimap. If you want it, it belongs as a separate
+button on the map-selection screen, and it is a different feature.
+
+---
+
+## 5. The monsterfish1 palette is lossy — and the default palette fixes it
+
+Found while writing the round-trip test, and worth calling out because it silently
+damages maps today.
+
+`sourcehold`'s palette gives three names the same colour `#ae9467`
+(`default_earth_or_texture`, `plateau_medium`, `plateau_high`) and three more the same
+`#0000ff` (`moat_undug`, `moat_dug`, `moat`). On export that is only a cosmetic merge.
+On import it is not: `set_terrain` builds its colour→name lookup with a Python dict
+comprehension, so for each shared colour **the last name wins**. Concretely,
+`bgr_palette[#ae9467]` is `plateau_high`, which means
+
+> every plain earth tile in an imported terrain PNG comes back as a high plateau.
+
+The same happens to `#0000ff`, where every moat state collapses onto `moat`.
+
+There is a second, quieter consequence. `logics.py` has no `moat_undug` entry in
+`logic1` at all — it never needed one, because the collision meant the name could never
+be looked up. Any palette that separates the moat states hits `logic1["moat_undug"] ==
+nil` and clears the tile's logic1 entirely. `mappng/map/palette.lua` adds
+`moat_undug = 0x8000`, matching how every other logic2-distinguished terrain is stored.
+
+So the module ships two palettes:
+
+* **`mappng`** (default) — monsterfish1 with the six colliding names given distinct
+  colours. `test_roundtrip.py::test_identity_with_default_palette` asserts that
+  game → PNG → game is an identity across every terrain type.
+* **`sourcehold`** — monsterfish1 exactly, for exchanging PNGs with the Python tool.
+  Its collisions are asserted in `test_palette.py` rather than left implicit, and its
+  tie-break is made explicit (plain earth wins `#ae9467`, not `plateau_high`) so at
+  least the common case survives.
+
+`test_roundtrip.py::test_sourcehold_palette_loses_plateaus` pins the lossy behaviour, so
+nobody later "fixes" the compatibility palette and breaks compatibility.
+
+---
+
+## 6. Build status
+
+| Milestone | State |
+| --- | --- |
+| M1 map ↔ PNG core | **done, tested offline** |
+| M2 PNG I/O via GDI+ | written, not yet run in the game |
+| M3 `mapping/` folder | written, not yet run in the game |
+| M4 buttons | written; needs the minimap coordinates |
+| M5 button graphics | icons in place; needs GM slots, text fallback active |
+| M6 file dialogs | not started; falls through to a default file name |
+| M7 feedback and safety | partial (undo snapshot, unknown-colour report) |
+| M8 tests, packaging, docs | tests and CI in place |
+
+26 offline tests pass (`python -m unittest discover -s tests`). They cover the tile
+mapping tile-for-tile against sourcehold's own formula, the flag tables against
+`logics.py`, both palettes, height and terrain round trips, and the icon geometry the
+button layout depends on.
+
+**Next three things, in order:**
+
+1. Confirm `ffi.load` works from the UCP `cffi` module. Everything in M2/M3 rests on it.
+2. Run `require("mappng.ui.screens").dump(17)` and `dump(1002)` with each editor screen
+   open, and fill in `minimap` in `mappng/ui/screens.lua`.
+3. Export a vanilla map, re-import it, and confirm the map is unchanged. That validates
+   M1 through M4 end to end.
