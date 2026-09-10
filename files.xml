@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<module>
+  <files>
+    <file src="init.lua" />
+    <file src="definition.yml" />
+    <file src="options.yml" />
+    <file src="mappng" />
+    <file src="resources" />
+    <file src="locale" />
+    <file src="README.md" />
+    <file src="CHANGELOG.md" />
+    <file src="docs/TESTING.md" target="docs" />
+  </files>
+</module>

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Store preview 0.1.0
+- Use the four supplied images inside native game buttons, with matching click areas.
+- Preserve menu terminators and real cffi callback addresses; contain callback errors.
+- Draw on the interface surface instead of the unused surface zero.
+- Add concise descriptions and working settings in all nine UCP languages.
+- Use the current GUI options schema and namespace settings under `map-png`.
+- Package runtime files, artwork and locales explicitly for the UCP store.
+- File selection and overwrite confirmation remain unfinished; fixed-name exports overwrite existing PNGs.
+
 ### Added
 - Project scaffold: module manifest, options, CI and offline test harness.
 - Map/PNG core: diamond<->square tile mapping, terrain flag and colour tables,
@@ -40,4 +49,4 @@
 
 ### Known gaps
 - The file picker is not implemented; imports and exports use a default file name.
-- The button graphics have no GM slots assigned yet, so buttons draw a text label.
+- Live verification of the latest native button artwork and conversions is pending.

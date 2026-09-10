@@ -151,6 +151,16 @@ function M.iconPosition(screen, index, layout)
   }
 end
 
+--- Native button surround with the supplied 32x18 picture centred inside.
+--- A two-pixel gap between buttons also fits the smallest (150px) preview.
+function M.buttonBounds(screen, index, layout)
+  layout = layout or M.currentLayout()
+  local icon = M.iconPosition(screen, index, layout)
+  local width, height = (layout.half // 2) - 2, 28
+  return { x = icon.x - ((width - M.ICON_WIDTH) // 2),
+    y = icon.y - ((height - M.ICON_HEIGHT) // 2), width = width, height = height }
+end
+
 --- Sets a manual correction for a screen and moves its buttons immediately.
 ---
 --- From the UCP console, with the editor map screen open:

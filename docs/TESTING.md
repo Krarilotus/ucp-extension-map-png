@@ -3,7 +3,7 @@
 ## 1. Install
 
 ```console
-python tools/deploy.py "S:/Projects/Harness/recorder-investigation/game-test"
+python tools/deploy.py "S:/Projects/Harness/test-builds/map-png-test"
 ```
 
 Copies the module to `ucp/modules/map-png-0.1.0/` and adds it to `ucp-config.yml`
@@ -35,6 +35,13 @@ values. `from default` means the build was not recognised and the row assumes a
 400x400 singleplayer map — expect it to be off on anything else.
 
 ## 3. Check the row sits under the preview
+
+The supplied images now sit inside the game's native button surround, with
+matching click targets. Left to right: import height, export height, import
+terrain, export terrain. The normal/hover/pressed appearance comes from the
+game's `renderButtonBackground`; the image assets themselves are unchanged.
+The latest artwork build has passed offline checks, but has not been tested
+visually in-game yet. Restart the test game to load it.
 
 The position is read out of the game binary, not guessed, so it should be right the
 first time. What to check:
@@ -85,7 +92,6 @@ modules['map-png']:access().actions.undo("terrain")
 
 ## What is expected to be wrong on the first run
 
-* The buttons draw a **text label**, not your artwork — the GM slots for the icons
-  are not assigned yet (`icons.SLOTS` is nil).
+* The file picker is still unfinished: the current four actions use the default
+  filenames described above. Do not expect a load/save dialog yet.
 * If the row is off, step 3 says how to measure and correct it.
-* Both dialogs are stubbed, so file names are not selectable yet.

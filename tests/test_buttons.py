@@ -1,4 +1,5 @@
-"""Installing the buttons must leave menu 17's item list intact.
+"""Installing the buttons must leave menu 17's item list intact, and running
+their callbacks must never raise into the game.
 
 The first in-game run crashed on entering the editor: buttons.lua used
 Menu:addMenuItem on an existing game menu, which overwrote the LAST_ENTRY
@@ -90,30 +91,75 @@ INFO, WARNING, ERROR = "INFO", "WARNING", "ERROR"
 logged = {}
 log = function(level, message) logged[#logged + 1] = level .. " " .. message end
 
--- cffi stand-in: callbacks become opaque numbers, "unsigned long" casts pass through.
+-- cffi-lua stand-in. Like the real thing on stock Lua 5.4, a scalar cast
+-- returns a cdata that the built-in tonumber cannot read (it returns nil);
+-- only ffi.tonumber converts it. The Lua function behind each callback stays
+-- callable for tests, keyed by its address.
 local nextHandle = 0x10000
+local Cdata = {}
+fakeCallbacks = {}
 fakeFfi = {
   cast = function(ctype, value)
-    if type(value) == "function" then nextHandle = nextHandle + 4 return nextHandle end
+    if type(value) == "function" then
+      nextHandle = nextHandle + 4
+      fakeCallbacks[nextHandle] = value
+      return setmetatable({ handle = nextHandle }, Cdata)
+    end
+    if getmetatable(value) == Cdata then
+      return setmetatable({ handle = value.handle }, Cdata)
+    end
     return value
   end,
+  tonumber = function(value)
+    if getmetatable(value) == Cdata then return value.handle end
+    return tonumber(value)
+  end,
 }
+-- The same, minus ffi.tonumber: what the buttons would see if it were missing.
+fakeFfiWithoutTonumber = { cast = fakeFfi.cast }
+assert(tonumber(fakeFfi.cast("unsigned long", fakeFfi.cast("t", function() end))) == nil,
+  "the stand-in must reproduce cffi-lua: plain tonumber cannot read a cdata")
+
+-- A game whose rendering layer blows up on first touch.
+brokenGame = { Rendering = setmetatable({}, { __index = function() error("boom") end }) }
+
+-- A game whose rendering layer records what it was asked to draw.
+drawn = {}
+workingGame = { Rendering = {
+  ButtonState = { x = 301, y = 343, width = 48, height = 28, interacting = 0 },
+  pDrawBufferChoiceValue = { [0] = 1 },
+  textManager = "tm", textureRenderCore = "trc",
+  renderTextToScreenConst = function(tm, text, x, y) drawn[#drawn + 1] = { text = text, x = x, y = y } end,
+  renderGM = function() end,
+  renderButtonBackground = function() end,
+} }
 """
 
 
-class TestButtonsInstall(unittest.TestCase):
+class ButtonsBase(unittest.TestCase):
     def setUp(self):
         self.lua = lua_harness.runtime()
         types = self.lua.table_from({i + 1: t for i, t in enumerate(MENU_17_TYPES)})
         self.lua.globals().menu17Types = types
         self.lua.execute(FAKE_UI)
         self.buttons = lua_harness.load(self.lua, "mappng.ui.buttons")
+        self.clicks = []
 
-    def install(self):
+    def install(self, game=None, on_click=None):
         g = self.lua.globals()
-        added = self.buttons.install(g.fakeFfi, self.lua.table(), lambda mode, what: None)
+        on_click = on_click or (lambda mode, what: self.clicks.append((mode, what)))
+        added = self.buttons.install(g.fakeFfi, game or g.workingGame, on_click)
         return added, g.fakeMenus[17]
 
+    def logged(self, level):
+        return [m for m in self.lua.globals().logged.values() if m.startswith(level)]
+
+    def callback(self, menu, index, field):
+        address = menu["menuItems"][index][field]["address"]
+        return self.lua.globals().fakeCallbacks[address]
+
+
+class TestButtonsInstall(ButtonsBase):
     def walk(self, menu):
         """What the game sees: item types up to the first LAST_ENTRY, or None."""
         types = []
@@ -129,8 +175,7 @@ class TestButtonsInstall(unittest.TestCase):
     def test_installs_four_buttons(self):
         added, _ = self.install()
         self.assertEqual(added, 4)
-        errors = [m for m in self.lua.globals().logged.values() if m.startswith("ERROR")]
-        self.assertEqual(errors, [])
+        self.assertEqual(self.logged("ERROR"), [])
 
     def test_item_list_stays_terminated(self):
         _, menu = self.install()
@@ -142,12 +187,18 @@ class TestButtonsInstall(unittest.TestCase):
     def test_buttons_are_standalone_items(self):
         """No interaction-group flag, or MainButtons would render them."""
         _, menu = self.install()
-        ours = [menu["menuItems"][i] for i in range(15, 19)]
-        for item in ours:
+        for i in range(15, 19):
+            item = menu["menuItems"][i]
             self.assertEqual(item["menuItemType"], 0x3)
             self.assertEqual(item["menuItemType"] & 0x03000000, 0)
             self.assertNotEqual(item["menuItemRenderFunction"]["address"], 0)
             self.assertNotEqual(item["menuItemActionHandler"]["address"], 0)
+
+    def test_install_logs_what_the_game_will_read(self):
+        self.install()
+        items = [m for m in self.logged("INFO") if "map-png: item [" in m]
+        self.assertEqual(len(items), 4)
+        self.assertIn("type=0x3", items[0])
 
     def test_recorded_indices_point_at_our_items(self):
         _, menu = self.install()
@@ -160,8 +211,8 @@ class TestButtonsInstall(unittest.TestCase):
         screen = self.buttons.installed()[1]["screen"]
         screen["offset"] = self.lua.table(x=5, y=7)
         self.assertEqual(self.buttons.reposition(17), 4)
-        self.assertEqual(menu["menuItems"][15]["position"]["position"]["x"], 309 + 5)
-        self.assertEqual(menu["menuItems"][15]["position"]["position"]["y"], 348 + 7)
+        self.assertEqual(menu["menuItems"][15]["position"]["position"]["x"], 301 + 5)
+        self.assertEqual(menu["menuItems"][15]["position"]["position"]["y"], 343 + 7)
         self.assertEqual(menu["menuItems"][14]["position"]["position"]["x"], 0)
 
     def test_addMenuItem_would_have_broken_the_menu(self):
@@ -171,6 +222,88 @@ class TestButtonsInstall(unittest.TestCase):
         for _ in range(4):
             menu.addMenuItem(menu, self.lua.table(menuItemType=0x3))
         self.assertIsNone(self.walk(menu), "addMenuItem left a terminator after all?")
+
+
+class TestCallbacksNeverRaise(ButtonsBase):
+    def test_original_artwork_matches_all_four_actions_inside_native_buttons(self):
+        self.lua.execute('''
+          local icons = require("mappng.ui.icons")
+          icons.available = function() return true end
+          chrome, pictures = {}, {}
+          workingGame.Rendering.renderButtonBackground = function(_, blend, target)
+            chrome[#chrome+1] = {blend=blend, target=target}
+          end
+          icons.draw = function(key, rendering, x, y)
+            assert(rendering.pDrawBufferChoiceValue[0] == 1)
+            pictures[#pictures+1] = {key=key, x=x, y=y}
+          end
+        ''')
+        _, menu = self.install()
+        expected = [("import_heightmap", "import", "height"),
+                    ("export_heightmap", "export", "height"),
+                    ("import_textures", "import", "terrain"),
+                    ("export_textures", "export", "terrain")]
+        for i, (key, mode, what) in enumerate(expected):
+            self.callback(menu, 15+i, "menuItemRenderFunction")(i+1)
+            self.callback(menu, 15+i, "menuItemActionHandler")(i+1)
+            pic = self.lua.globals().pictures[i+1]
+            self.assertEqual((pic.key, pic.x, pic.y), (key, 309, 348))
+        self.assertEqual(self.clicks, [(mode, what) for _, mode, what in expected])
+        self.assertEqual(len(self.lua.globals().chrome), 4)
+        self.assertEqual(len(self.lua.globals().drawn), 0, "artwork was replaced by text")
+        self.assertEqual(self.logged("ERROR"), [])
+
+    def test_render_failure_restores_the_callers_drawing_surface(self):
+        self.lua.execute('''
+          workingGame.Rendering.pDrawBufferChoiceValue[0] = 2
+          workingGame.Rendering.renderButtonBackground = function() error("draw failed") end
+        ''')
+        _, menu = self.install()
+        self.callback(menu, 15, "menuItemRenderFunction")(1)
+        self.assertEqual(self.lua.globals().workingGame.Rendering.pDrawBufferChoiceValue[0], 2)
+        self.assertTrue(any("draw failed" in m for m in self.logged("ERROR")))
+
+    def test_render_draws_the_label(self):
+        _, menu = self.install()
+        self.callback(menu, 15, "menuItemRenderFunction")(1)
+        drawn = list(self.lua.globals().drawn.values())
+        self.assertEqual(len(drawn), 1)
+        self.assertEqual(drawn[0]["text"], "H in")
+        self.assertEqual(self.logged("ERROR"), [])
+
+    def test_render_error_is_contained_and_logged(self):
+        g = self.lua.globals()
+        _, menu = self.install(game=g.brokenGame)
+        render = self.callback(menu, 15, "menuItemRenderFunction")
+        for _ in range(10):
+            render(1)  # must not raise into the caller -- that caller is the game
+        errors = self.logged("ERROR")
+        self.assertEqual(len(errors), self.buttons.LOGGED_FAILURES, "failures not rate-limited")
+        self.assertIn("boom", errors[0])
+        self.assertIn("render import_heightmap", errors[0])
+
+    def test_step_markers_stop_after_the_first_calls(self):
+        _, menu = self.install()
+        render = self.callback(menu, 15, "menuItemRenderFunction")
+        for _ in range(10):
+            render(1)
+        markers = [m for m in self.logged("INFO") if "[render import_heightmap #" in m]
+        self.assertTrue(markers, "no step markers logged")
+        self.assertTrue(all("#%d]" % n in "".join(markers) for n in (1, 2, 3)))
+        self.assertFalse(any("#4]" in m for m in markers), "markers not limited")
+        self.assertIn("calling renderTextToScreenConst", "".join(markers))
+
+    def test_click_runs_the_action(self):
+        _, menu = self.install()
+        self.callback(menu, 16, "menuItemActionHandler")(2)
+        self.assertEqual(self.clicks, [("export", "height")])
+
+    def test_click_error_is_contained(self):
+        def explode(mode, what):
+            raise RuntimeError("action exploded")
+        _, menu = self.install(on_click=explode)
+        self.callback(menu, 15, "menuItemActionHandler")(1)
+        self.assertTrue(any("click import_heightmap failed" in m for m in self.logged("ERROR")))
 
 
 if __name__ == "__main__":
