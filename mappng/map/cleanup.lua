@@ -59,11 +59,19 @@ function M.prepare(core, ffi, view)
   end
   local unitStates = {}
   function a.preflight()
-    assert(core.readInteger(0xF98528) >= 1 and core.readInteger(0xF98528) <= 2000,
-      'map-png: invalid building capacity')
+    -- updateBuildings (0x422E20) periodically resets this high-water mark to
+    -- zero, then raises it to highest active ID + 1. It is NOT allocation size:
+    -- an empty map changes from the initial 2000 to 0 after entering map view.
+    local buildingScanLimit = core.readInteger(0xF98528)
+    assert(buildingScanLimit >= 0 and buildingScanLimit <= a.capacity.building,
+      'map-png: invalid building scan limit: ' .. tostring(buildingScanLimit))
     for kind, count in pairs(a.capacity) do
       assert(not a.active(kind, 0), 'map-png: occupied sentinel record')
       for id = 1, count - 1 do
+        if kind == 'building' and buildingScanLimit == 0 then
+          assert(not a.active(kind, id),
+            'map-png: zero building scan limit with active record ' .. id)
+        end
         if a.active(kind, id) and kind ~= 'building' then
           local offset = kind == 'tree' and 0x68 or 4
           local tile = core.readInteger(record(kind, id) + offset)
