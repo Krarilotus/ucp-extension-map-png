@@ -41,13 +41,13 @@ class TestScreens(unittest.TestCase):
         self.assertEqual((layout["centreX"], layout["centreY"]), (400, 240))
 
         row = self.row(layout)
-        self.assertEqual([p["x"] for p in row], [309, 359, 409, 459])
+        self.assertEqual([p["x"] for p in row], [278, 342, 406, 470])
         self.assertEqual({p["y"] for p in row}, {348})
 
     def test_multiplayer_400_shifts_right_by_200(self):
         self.game(multiplayer=1, size=400)
         row = self.row()
-        self.assertEqual([p["x"] for p in row], [509, 559, 609, 659])
+        self.assertEqual([p["x"] for p in row], [478, 542, 606, 670])
         self.assertEqual({p["y"] for p in row}, {348})
 
     def test_row_follows_the_preview_size(self):
@@ -59,7 +59,7 @@ class TestScreens(unittest.TestCase):
                 self.assertEqual(layout["half"], half)
 
                 row = self.row(layout)
-                left, right = 400 - half, 400 + half
+                left, right = 400 - 126, 400 + 126
                 self.assertEqual({p["y"] for p in row}, {240 + half + 8})
                 for p in row:
                     self.assertGreaterEqual(p["x"], left)
@@ -71,10 +71,10 @@ class TestScreens(unittest.TestCase):
     def test_icons_are_centred_in_equal_slots(self):
         self.game(size=400)
         row = self.row()
-        slot = 50
+        slot = 64
         for i, p in enumerate(row):
-            slot_left = 300 + i * slot
-            self.assertEqual(p["x"] - slot_left, (slot - self.screens.ICON_WIDTH) // 2)
+            slot_left = 274 + i * slot
+            self.assertEqual(p["x"] - slot_left, (60 - self.screens.ICON_WIDTH) // 2)
 
     def test_map_size_zero_means_400(self):
         self.game(size=0)
@@ -112,7 +112,7 @@ class TestScreens(unittest.TestCase):
         self.game(size=400)
         self.screen["offset"] = self.lua.table(x=3, y=-2)
         row = self.row()
-        self.assertEqual([p["x"] for p in row], [312, 362, 412, 462])
+        self.assertEqual([p["x"] for p in row], [281, 345, 409, 473])
         self.assertEqual({p["y"] for p in row}, {346})
 
 

@@ -39,6 +39,12 @@ local function view()
   return result
 end
 
+function M.preview(what)
+  if what == "height" then return height.export(view().layers, state.lookup, diamond.SIZE) end
+  assert(what == "terrain", "unknown preview layer")
+  return terrain.export(view().layers, state.lookup, state.palette, diamond.SIZE)
+end
+
 --- Keeps one level of undo for an import.
 local function snapshot(kind, layers)
   local ffi = state.ffi

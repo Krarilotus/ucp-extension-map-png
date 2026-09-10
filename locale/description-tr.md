@@ -1,3 +1,3 @@
-Harita düzenleyicisindeki mini haritanın altındaki dört düğmeyle yükseklik ve arazi PNG’lerini (400×400) içe/dışa aktarın.
+Harita düzenleyicisinde yükseklik ve arazi PNG’lerini (400×400) içe/dışa aktarın. Dosyaları `mapping/` klasöründen seçin; üzerine yazmayı onaylayın.
 
-Dosyalar: `mapping/map_height.png` ve `mapping/map_tex.png`. Dosya adları sabittir; dışa aktarım mevcut dosyaların üzerine yazar. Henüz dosya seçici yok.
+Düğme çizimleri: Monsterfish_. Kolayca düzenlenebilen çevrimdışı bir Photoshop şablonu için Monsterfish_ ile iletişime geçin.

@@ -20,7 +20,8 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 # Copied verbatim into the installed module folder.
-PAYLOAD = ["init.lua", "definition.yml", "options.yml", "mappng", "resources", "locale"]
+PAYLOAD = ["init.lua", "definition.yml", "options.yml", "mappng", "resources", "locale",
+           "CREDITS.md", "licenses"]
 
 # The module has to load after the ones it depends on.
 AFTER = "ui"

@@ -1,97 +1,60 @@
-# Testing the buttons
+# Testing the current build
 
-## 1. Install
+## Install
+
+Close the test game before replacing its module.
 
 ```console
 python tools/deploy.py "S:/Projects/Harness/test-builds/map-png-test"
 ```
 
-Copies the module to `ucp/modules/map-png-0.1.0/` and adds it to `ucp-config.yml`
-(backing the config up first). The install must be a **Developer** build of UCP —
-check `ucp/ucp-version.yml` for `build: Developer` — because the module is unsigned.
+The unsigned module needs a Developer UCP build and its dependencies from
+`definition.yml`. Launch **Stronghold Crusader.exe**, normal 1.41, not Extreme.
+The native dialog bindings reject incompatible code.
 
-Dependencies must already be present in `ucp/modules/`: `cffi`, `luajit`, `ui`,
-`gmResourceModifier`.
+## Position and artwork regression
 
-## 2. Launch and look at the log
+Load the test map and open editor map properties. Repeat with singleplayer and
+multiplayer map types and each available map size.
 
-Launch **`Stronghold Crusader.exe`, not `Stronghold_Crusader_Extreme.exe`**. The
-button layout was read out of Crusader 1.41, the same version `sourcehold`
-supports. Extreme has the same map-layer layout, and `tilemap.lua` finds it through
-Extreme's own section table, but the row's layout globals are only known for 1.41:
-under Extreme the row sits where a 400x400 singleplayer map puts it and does not
-follow the map.
+- Four distinct glyphs must appear inside native surrounds below the minimap.
+- Left to right: import height, export height, import terrain, export terrain.
+- The 252px row stays centred below the preview, even when the preview is smaller.
+- Leaving, loading another map and returning must not move controls to (0,0).
+- Opening a modal must hide the underlying row and block its actions.
+- Hover and pressed states must come from the native button renderer.
 
-Open the map editor and go to the map screen. In `ucp3.log`, next to the exe, you
-want:
-
-```
-map-png: using <game>\mapping
-map-png: added 4 buttons to menu 17 (map-editor-properties), first at menu-local (309,348), layout sp:400 from game
-```
-
-`layout sp:400 from game` means the row was placed from the game's own layout
-values. `from default` means the build was not recognised and the row assumes a
-400x400 singleplayer map — expect it to be off on anything else.
-
-## 3. Check the row sits under the preview
-
-The supplied images now sit inside the game's native button surround, with
-matching click targets. Left to right: import height, export height, import
-terrain, export terrain. The normal/hover/pressed appearance comes from the
-game's `renderButtonBackground`; the image assets themselves are unchanged.
-The latest artwork build has passed offline checks, but has not been tested
-visually in-game yet. Restart the test game to load it.
-
-The position is read out of the game binary, not guessed, so it should be right the
-first time. What to check:
-
-* **Singleplayer map:** the four icons sit in a row directly under the preview,
-  spanning its width.
-* **Multiplayer map:** the preview is further right, and the row moves with it.
-* **Smaller map (e.g. 160x160):** the preview shrinks, and the row follows it up.
-
-The external probe prints where each icon should be, in screen coordinates, while
-the game runs:
+The read-only probe reports expected icon positions and actual native items:
 
 ```console
 python tools/probe_running_game.py
 ```
 
-If the row is off by a few pixels, correct it live and report the numbers — a
-correction means one of the facts in `mappng/ui/screens.lua` is wrong:
+For a 400×400 map, first icon coordinates relative to the menu origin are
+(278,348) in singleplayer and (478,348) in multiplayer. Each inserted control must
+have `ucId_0x30 == -1`, nonzero render/action pointers, and a retained terminator.
+Inspect `ucp3.log` for callback failures as well as initialization messages.
 
-```lua
-local s = modules['map-png']:access().screens
-s.probe(17)            -- log the live layout and every icon position
-s.nudge(17, 0, -2)     -- move the row by (dx, dy)
-```
+## Selection and conversion
 
-## 4. Test the conversion
+Follow [the full picker checklist](PICKER_TEST.md). Start with export, which
+does not change the map. Choose a fresh name for each layer and inspect the PNGs.
+Then import those exports and verify the map remains unchanged using the default
+lossless palette. Cancelled or invalid imports must not change map layers.
 
-Until the file dialog exists, the buttons use a default name in `<game>/mapping/`.
-
-The safe first test is **export**, which only reads:
-
-1. Load a map in the editor.
-2. Click export height, then export terrain.
-3. Check `<game>/mapping/` for `map_height.png` and `map_tex.png`, both 400x400.
-
-Then the round trip, which is the real exit criterion:
-
-4. Click import height and import terrain without editing the PNGs.
-5. The map should be unchanged. If the terrain shifts, either the palette or the
-   redraw flags are wrong.
-
-Import keeps one undo snapshot:
+If snapshot-before-import is enabled, one previous snapshot per layer is exposed:
 
 ```lua
 modules['map-png']:access().actions.undo("height")
 modules['map-png']:access().actions.undo("terrain")
 ```
 
-## What is expected to be wrong on the first run
+Finally test the game's ordinary map save/load, including keyboard input and
+returning to the properties menu. Check language labels and filename input in
+each supported language; offline string coverage does not verify game fonts.
 
-* The file picker is still unfinished: the current four actions use the default
-  filenames described above. Do not expect a load/save dialog yet.
-* If the row is off, step 3 says how to measure and correct it.
+## Release gate
+
+The latest source passes offline regression tests but has not passed this live
+checklist. Keep the store PR on hold until the complete flow passes. Coverage of
+other map menus remains separate work; see [NATIVE_UI.md](NATIVE_UI.md).

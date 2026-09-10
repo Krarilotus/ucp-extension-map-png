@@ -42,6 +42,8 @@
 
 local screens = require("mappng.ui.screens")
 local icons = require("mappng.ui.icons")
+local filedialog = require("mappng.ui.filedialog")
+local controls = require("mappng.ui.controls")
 
 local M = {}
 
@@ -57,6 +59,7 @@ M.LOGGED_FAILURES = 3
 local traceback = (debug and debug.traceback) or function(err) return err end
 
 local state = {
+  enabled = true,
   items = {},
   callbacks = {},
   layoutKey = nil,
@@ -118,7 +121,9 @@ local function makeRender(ffi, game, action)
   local label = icons.LABELS[action.key]
 
   local render = ffi.cast("void (__cdecl *)(int)", guarded(key, function(_)
+    if not state.enabled then return end
     trace(key, "entered")
+    filedialog.update()
 
     local layout = followLayout()
     if layout.hidden then
@@ -131,11 +136,7 @@ local function makeRender(ffi, game, action)
     trace(key, string.format("button at (%d,%d), layout %s",
       tonumber(button.x), tonumber(button.y), layout.key))
 
-    local previousSurface = rendering.pDrawBufferChoiceValue[0]
-    -- Surface 0 does not draw. The same native renderer behind renderGM uses
-    -- surface 1 for normal interface drawing and surface 2 for its backbuffer.
-    rendering.pDrawBufferChoiceValue[0] = 1
-    local ok, err = pcall(function()
+    controls.onMenuSurface(rendering, function()
       -- Vanilla button chrome uses ButtonState, including its interaction
       -- state. Only the picture inside is ours (no custom button skin).
       rendering.renderButtonBackground(rendering.alphaAndButtonSurface, 0, -1)
@@ -150,8 +151,6 @@ local function makeRender(ffi, game, action)
           label, x, y, 0, 0xB8EEFB, 0x0E, false, 0)
       end
     end)
-    rendering.pDrawBufferChoiceValue[0] = previousSurface
-    if not ok then error(err, 0) end
 
     trace(key, "done")
   end))
@@ -164,6 +163,7 @@ local function makeAction(ffi, action, onClick)
   local key = "click " .. action.key
 
   local handler = ffi.cast("void (__cdecl *)(int)", guarded(key, function(_)
+    if not state.enabled then return end
     trace(key, "entered")
     if screens.currentLayout().hidden then
       trace(key, "preview hidden, ignoring")
@@ -189,6 +189,8 @@ end
 ---@param game table the ui module's game bindings
 ---@param onClick fun(mode:string, what:string) invoked when a button is pressed
 function M.install(ffi, game, onClick)
+  state.enabled = true
+  if #state.items > 0 then return #state.items end
   local Menu = modules.ui:access().api.ui.Menu
   local layout = screens.currentLayout()
   state.layoutKey = layout.key
@@ -228,22 +230,17 @@ function M.install(ffi, game, onClick)
       for index, entry in ipairs(prepared) do
         local position = screens.buttonBounds(screen, index, layout)
 
-        -- Insert just before the terminator, which shifts it down one slot.
+        -- Native hit testing stops at the first hit (0x4F6424..0x4F642D).
+        -- Invisible vanilla MP controls still cover the SP height buttons.
+        -- Prepend standalone items before ALL vanilla groups so our visible
+        -- controls win, keeping the original groups and their order intact.
         -- Later inserts land after this one, so the recorded index stays valid.
         -- The Menu object is kept rather than the item pointer, because
         -- reallocateMenuItems replaces the array wholesale.
-        local itemIndex = menu.menuItemsIndex
+        local itemIndex = index - 1
 
-        menu:insertMenuItem(itemIndex, {
-          menuItemType = M.MENU_ITEM_TYPE,
-          menuItemRenderFunctionType = RENDER_FUNCTION_TYPE_SIMPLE,
-          position = { position = { x = position.x, y = position.y } },
-          itemWidth = position.width,
-          itemHeight = position.height,
-          callbackParameter = { parameter = index },
-          menuItemRenderFunction = { address = entry.render },
-          menuItemActionHandler = { address = entry.handler },
-        })
+        menu:insertMenuItem(itemIndex, controls.item(position, entry.render, entry.handler, index))
+        controls.verify(menu.menuItems[itemIndex])
 
         state.items[#state.items + 1] = {
           screen = screen,
@@ -288,6 +285,10 @@ function M.install(ffi, game, onClick)
   end
 
   return #state.items
+end
+
+function M.disable()
+  state.enabled = false
 end
 
 --- Moves already-installed buttons to wherever `screens` now says they go.

@@ -1,3 +1,3 @@
-Magasság- és terep-PNG-k (400×400) importálása/exportálása a térképszerkesztő minitérképe alatti négy gombbal.
+Magasság- és terep-PNG-k (400×400) importálása/exportálása a térképszerkesztőben. Fájlválasztás a `mapping/` mappából; felülírás csak megerősítéssel.
 
-Fájlok: `mapping/map_height.png` és `mapping/map_tex.png`. Rögzített fájlnevek; az exportálás felülírja a meglévő fájlokat. Még nincs fájlválasztó.
+Gombgrafika: Monsterfish_. Könnyen szerkeszthető, offline Photoshop-sablonért keresd Monsterfish_-t.

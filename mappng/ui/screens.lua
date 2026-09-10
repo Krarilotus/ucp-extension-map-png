@@ -32,18 +32,20 @@
 ---
 --- The global names are ours; OpenSHC has none for them yet.
 ---
---- The row is four equal slots spanning the preview's width, each icon centred
---- in its slot, 8px below the preview. That reproduces the mockup: a strip
---- starting 3px under the preview, 28px tall, four segments across. The
---- icons are 32x18, which fits a slot at every map size.
+--- A 252px row is centred below the preview. Each 60x32 native button holds
+--- a 52x22 glyph, with 4px between buttons. Keep readable glyph sizes even
+--- when the game's preview is smaller than the row.
 
 local M = {}
 
-M.ICON_WIDTH = 32
-M.ICON_HEIGHT = 18
+M.ICON_WIDTH = 52
+M.ICON_HEIGHT = 22
+M.BUTTON_WIDTH = 60
+M.BUTTON_HEIGHT = 32
+M.BUTTON_GAP = 4
+M.ROW_WIDTH = 4 * M.BUTTON_WIDTH + 3 * M.BUTTON_GAP
 
---- Below the preview's bottom edge: 3px to the mockup's strip, plus 5 to centre
---- an 18px icon in its 28px height.
+--- Below the preview: 3px to the button, plus 5px to centre its 22px glyph.
 M.ICON_GAP = 8
 
 --- The four actions, in the order they appear left to right.
@@ -141,22 +143,21 @@ end
 function M.iconPosition(screen, index, layout)
   layout = layout or M.currentLayout()
 
-  local slot = layout.half // 2
-  local left = layout.centreX - layout.half
+  local slot = M.BUTTON_WIDTH + M.BUTTON_GAP
+  local left = layout.centreX - (M.ROW_WIDTH // 2)
   local offset = screen.offset or { x = 0, y = 0 }
 
   return {
-    x = left + ((index - 1) * slot) + ((slot - M.ICON_WIDTH) // 2) + offset.x,
+    x = left + ((index - 1) * slot) + ((M.BUTTON_WIDTH - M.ICON_WIDTH) // 2) + offset.x,
     y = layout.centreY + layout.half + M.ICON_GAP + offset.y,
   }
 end
 
---- Native button surround with the supplied 32x18 picture centred inside.
---- A two-pixel gap between buttons also fits the smallest (150px) preview.
+--- Native button surround with the isolated 52x22 glyph centred inside.
 function M.buttonBounds(screen, index, layout)
   layout = layout or M.currentLayout()
   local icon = M.iconPosition(screen, index, layout)
-  local width, height = (layout.half // 2) - 2, 28
+  local width, height = M.BUTTON_WIDTH, M.BUTTON_HEIGHT
   return { x = icon.x - ((width - M.ICON_WIDTH) // 2),
     y = icon.y - ((height - M.ICON_HEIGHT) // 2), width = width, height = height }
 end

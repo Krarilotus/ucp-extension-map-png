@@ -36,11 +36,10 @@ class TestIcons(unittest.TestCase):
         lua = lua_harness.runtime()
         screens = lua_harness.load(lua, "mappng.ui.screens")
 
-        self.assertEqual(screens.ICON_WIDTH, 32)
-        self.assertEqual(screens.ICON_HEIGHT, 18)
-        narrowest = min(half // 2 for half in screens.PREVIEW["halfBySize"].values())
-        self.assertEqual(narrowest, 37)
-        self.assertLessEqual(screens.ICON_WIDTH, narrowest)
+        self.assertEqual(screens.ICON_WIDTH, 52)
+        self.assertEqual(screens.ICON_HEIGHT, 22)
+        self.assertLessEqual(screens.ICON_WIDTH + 8, screens.BUTTON_WIDTH)
+        self.assertLessEqual(screens.ICON_HEIGHT + 10, screens.BUTTON_HEIGHT)
 
     def test_every_action_has_an_icon_and_a_label(self):
         lua = lua_harness.runtime()

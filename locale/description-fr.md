@@ -1,3 +1,3 @@
-Importez/exportez des PNG de hauteur et de terrain (400×400) avec quatre boutons sous la mini-carte de l’éditeur.
+Importez/exportez des PNG de hauteur et de terrain (400×400) dans l’éditeur de cartes. Choisissez les fichiers dans `mapping/` ; confirmez tout remplacement.
 
-Fichiers : `mapping/map_height.png` et `mapping/map_tex.png`. Noms fixes ; les exports écrasent les fichiers existants. Pas encore de sélecteur de fichiers.
+Illustrations des boutons par Monsterfish_. Contactez Monsterfish_ pour un modèle Photoshop hors ligne facile à modifier.

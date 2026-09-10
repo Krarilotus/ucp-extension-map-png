@@ -1,81 +1,44 @@
 # map-png
 
-A UCP3 module for Stronghold Crusader that adds four buttons under the minimap on the
-map editor screens:
+Four native-styled buttons below the map editor minimap: import height, export
+height, import terrain, export terrain.
 
-| | |
-| --- | --- |
-| ![](resources/icons/import_heightmap.png) | import height map |
-| ![](resources/icons/export_heightmap.png) | export height map |
-| ![](resources/icons/import_textures.png) | import terrain map |
-| ![](resources/icons/export_textures.png) | export terrain map |
+PNGs are 400×400. Choose files and export names in `<game>/mapping/`, created
+automatically. Existing exports require confirmation before replacement.
+Import previews show the selected PNG; export initially previews the converted
+map layer. The module uses Windows GDI+ and in-process map access; no Python
+installation or external conversion executable is required by players.
 
-PNGs live in `<game directory>/mapping/`, which the module creates on first run.
-
-The buttons use the game's native surround and interaction state, with the four
-original PNG images centred inside. Their TGX encodings draw through the native
-interface renderer without replacing any vanilla GM image slots.
-
-See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) for the original design and
-[docs/TESTING.md](docs/TESTING.md) for verification and remaining work.
-
-## Why this exists
-
-The same conversion is possible today with [sourcehold-maps][sourcehold]:
-
-```console
-sourcehold memory map set height  --input "map_goldwaters_height.png"
-sourcehold memory map set terrain --input "map_goldwaters_tex.png"
-sourcehold memory map get terrain --output output.png
-sourcehold memory map get height  --output output_height.png
-```
-
-That works, but it means a second command prompt, a Python install with numpy, OpenCV
-and pymem, and remembering which map layer is which. It also has to attach to the
-running game from outside and poke its memory through `pymem`.
-
-A UCP module runs *inside* the game, so none of that is needed. **Nothing is bundled**:
-the map layers are ordinary pointer dereferences, and PNG encoding uses `gdiplus.dll`,
-which is already part of Windows.
+The creator's transparent glyphs are cropped and enlarged by exact pixel
+replication, then drawn inside the game's native button surround. No vanilla
+image slots are replaced.
 
 ## Status
 
-Working and tested offline:
+The current integration targets **normal Stronghold Crusader 1.41**, menu 17:
+singleplayer scenario and multiplayer editor map properties. Other map-selection
+and gameplay menus are not yet integrated. Do not use with Extreme.
 
-* the diamond ↔ square tile mapping, verified tile-for-tile against sourcehold's
-  `TileLocationTranslator`
-* the terrain flag ↔ colour tables, verified against `logics.py` and OpenSHC's
-  `Logic1.hpp` / `Logic2.hpp`
-* height and terrain export/import, round-trip tested
+Offline regression tests cover conversion round trips, palette compatibility,
+PNG preview encoding, selection/overwrite state, localization coverage, icon
+transparency and native control field names. The latest fixes for reload
+positioning, picker previews, action labels and supplied artwork await live
+acceptance. A passing offline suite does not establish native UI correctness.
 
-Verified against the cffi module's source (see the plan, §7): `ffi.load`, `__stdcall`
-and callbacks are all available, so the GDI+ route stands and no native DLL is needed.
+See [testing](docs/TESTING.md), [picker acceptance](docs/PICKER_TEST.md), and the
+[modder integration guide](docs/NATIVE_UI.md). The original design remains in
+[IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md); it is not a completion report.
+Stable store publication is pending live acceptance. The unsigned test prerelease
+has [portable installation instructions](docs/PORTABLE_TEST.md).
 
-Written but not yet run in the game:
-
-* the GDI+ PNG bindings
-* locating `TileMapState` and forcing the redraw
-* the latest native-framed buttons and supplied artwork (offline checks pass;
-  live visual testing was deferred at the user's request)
-
-Not written yet:
-
-* the file picker (`mappng/ui/filedialog.lua` falls through to a default name)
-
-The earlier menu-entry crash fixes are in the test copy: preserve the end marker,
-convert callback pointers using `ffi.tonumber`, and contain Lua callback errors.
-The previous drawing-surface value of zero rendered nothing; the new buttons use
-surface 1 and restore the caller's surface afterwards.
+See [credits and third-party provenance](CREDITS.md) for authors, retained license
+notices and the remaining release-licensing checks.
 
 ## Palettes
 
-Two are available, selected in the UCP GUI:
-
-* **`mappng`** (default) — a lossless round trip.
-* **`sourcehold`** — the monsterfish1 palette, byte-for-byte compatible with existing
-  sourcehold PNGs. It gives plain earth and both plateau levels the same `#ae9467`, and
-  all three moat states the same `#0000ff`, so importing an exported map does not give
-  the map back. Use it only when you need to exchange PNGs with the Python tool.
+- `mappng` (default): lossless terrain round trips.
+- `sourcehold`: compatible with the sourcehold/monsterfish1 palette. Shared
+  colors lose distinctions between plateau levels and moat states.
 
 ## Development
 
@@ -85,7 +48,6 @@ python tools/build_icons.py
 python -m unittest discover -s tests -v
 ```
 
-The tests run the module's pure-Lua files in a real Lua 5.4 runtime — the same version
-the UCP framework uses — with the game and FFI layers stubbed out.
-
-[sourcehold]: https://github.com/sourcehold/sourcehold-maps
+Tests execute pure Lua in Lua 5.4 with native game/FFI dependencies stubbed.
+Rebuild icons only from `resources/icons/creator-v2/`; the older opaque originals
+are retained for provenance, not runtime rendering.

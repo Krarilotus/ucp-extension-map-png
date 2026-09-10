@@ -43,6 +43,8 @@ function M.readRGB(bound, path)
     check(gdi.GdipGetImageHeight(bitmap, h), "GdipGetImageHeight")
 
     local width, height = tonumber(w[0]), tonumber(h[0])
+    assert(width > 0 and height > 0 and width * height <= 4194304,
+      "map-png: PNG dimensions exceed the decoding limit")
 
     local rect = ffi.new("GpRect[1]")
     rect[0].X, rect[0].Y = 0, 0
@@ -57,12 +59,9 @@ function M.readRGB(bound, path)
       local stride = tonumber(data[0].Stride)
       local scan0 = ffi.cast("unsigned char *", data[0].Scan0)
       -- A negative stride means the rows are stored bottom-up.
-      local base = 0
-      if stride < 0 then
-        base = stride * (height - 1)
-      end
       for y = 0, height - 1 do
-        local row = base + (y * stride)
+        -- Scan0 is the first logical row; Stride already carries direction.
+        local row = y * stride
         local out = y * width
         for x = 0, width - 1 do
           local p = row + (x * 4)
