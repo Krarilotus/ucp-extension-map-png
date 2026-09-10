@@ -35,6 +35,45 @@ class Cleanup(unittest.TestCase):
           assert(not ok and tostring(err):find('occupied wall'))
         ''')
 
+    def test_empty_map_before_and_after_entering_map_view(self):
+        self.lua.execute('''
+          limit=2000; activeBuilding=false; deletes=0
+          local zeros=setmetatable({}, {__index=function() return 0 end})
+          local core={readInteger=function(addr)
+            if addr==0xF98528 then return limit end
+            for _,spec in pairs(cleanup.BINDINGS) do
+              if addr==spec[1] then return spec[2] end
+            end
+            return 0
+          end, readSmallInteger=function(addr)
+            if activeBuilding and addr==0xF98520+0x14+0x32C+0xD0 then return 2 end
+            return 0
+          end}
+          local ffi={cast=function(kind, addr)
+            if kind:find('__thiscall',1,true) then
+              return function() deletes=deletes+1 end
+            end
+            return zeros
+          end}
+          local view={build='Crusader 1.41',base=0x1A93208,layers={logic1=zeros}}
+          cleanup.prepare(core,ffi,view)()
+          limit=0 -- native updateBuildings on an empty map
+          cleanup.prepare(core,ffi,view)()
+          cleanup.prepare(core,ffi,view)() -- repeated import after returning
+          assert(deletes==0)
+          activeBuilding=true
+          local ok,err=pcall(cleanup.prepare,core,ffi,view)
+          assert(not ok and tostring(err):find('zero building scan limit'))
+          assert(deletes==0)
+          activeBuilding=false
+          for _,bad in ipairs({-1,2001}) do
+            limit=bad
+            local ok,err=pcall(cleanup.prepare,core,ffi,view)
+            assert(not ok and tostring(err):find('invalid building scan limit: '..bad,1,true))
+          end
+          assert(deletes==0)
+        ''')
+
     def test_extreme_rejected_before_binding(self):
         self.lua.execute('''
           local ok,err=pcall(cleanup.prepare,{}, {}, {build='Crusader Extreme 1.41.1-E'})

@@ -66,3 +66,12 @@ the normal 1.41 executable are the reference sources; CREDITS.md applies.
 
 Offline tests and function signatures are checked. The live acceptance matrix
 above is still required: do not label this fully verified safe yet.
+
+## Empty-map transition regression (test.4)
+
+BuildingsState+8 is a dynamic scan limit, not allocation capacity. Native
+updateBuildings at 0x422E20 periodically writes zero at 0x422E60, then sets it to
+highest active building ID + 1 at 0x422E85. An empty map therefore changes from
+the initialization value 2000 to zero after entering map view. Accept 0..2000;
+for zero, verify that no active building records exist. Continue scanning the
+fixed 2000-record allocation. Do not reset the native counter or skip cleanup.

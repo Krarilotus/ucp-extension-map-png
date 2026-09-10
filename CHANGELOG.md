@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0 test.4 — 2026-09-10
+
+- Fix imports after entering map view on an empty map: the native building scan
+  limit legitimately becomes zero. Keep allocation bounds and reject zero limits
+  with active records. No cleanup checks are bypassed.
+- Regression covers initial state, map-view transition, repeated imports and
+  invalid/inconsistent limits. Native live acceptance remains pending.
+
 ## 0.1.0 test.3 — 2026-09-10
 
 - Both PNG imports stage conversion before native structure/object cleanup.
