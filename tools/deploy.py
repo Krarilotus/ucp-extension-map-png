@@ -64,7 +64,11 @@ def patch_config(game, version):
         print("no ucp-config.yml at %s, skipping config" % config)
         return False
 
-    text = config.read_text(encoding="utf-8")
+    # Keep the file's own line endings. Text mode would silently turn an
+    # LF-only config into CRLF on Windows and rewrite every line of it.
+    raw = config.read_bytes().decode("utf-8")
+    newline = "\r\n" if "\r\n" in raw else "\n"
+    text = raw.replace("\r\n", "\n")
     if re.search(r"^\s*- extension: map-png\s*$", text, re.MULTILINE):
         print("map-png already in load-order, leaving the config alone")
         return False
@@ -90,7 +94,7 @@ def patch_config(game, version):
             "could not find '- extension: %s' in load-order; add map-png by hand"
             % AFTER)
 
-    config.write_text(updated, encoding="utf-8")
+    config.write_bytes(updated.replace("\n", newline).encode("utf-8"))
     return True
 
 
@@ -113,7 +117,8 @@ def main():
         if patch_config(game, version):
             print("activated map-png %s in ucp-config.yml" % version)
 
-    print("\nNow: launch the game, open the map editor, and check ucp.log for")
+    print("\nNow: launch 'Stronghold Crusader.exe' (not Extreme), open the map")
+    print("editor, and check ucp3.log next to the exe for")
     print("  'map-png: added 4 buttons to menu ...'")
 
 
