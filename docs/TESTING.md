@@ -15,7 +15,13 @@ Dependencies must already be present in `ucp/modules/`: `cffi`, `luajit`, `ui`,
 
 ## 2. Launch and look at the log
 
-Open the map editor and go to the map screen. In `ucp.log` you want:
+Launch **`Stronghold Crusader.exe`, not `Stronghold_Crusader_Extreme.exe`**. The
+addresses are for Crusader 1.41, the same version `sourcehold` supports. Under
+Extreme the buttons still appear, but an import or export refuses to run: the
+section-table cross-check in `tilemap.lua` fails before anything is written.
+
+Open the map editor and go to the map screen. In `ucp3.log`, next to the exe, you
+want:
 
 ```
 map-png: using <game>\mapping
