@@ -56,11 +56,11 @@ def editor_row(values):
     variant = "mp" if values["multiplayerLayout"] else "sp"
     size = values["mapSize"] or 400
     half = HALF_BY_SIZE.get(size, 100)
-    centre_x, centre_y, slot = (600 if variant == "mp" else 400), 240, half // 2
+    centre_x, centre_y = (600 if variant == "mp" else 400), 240
     return {
         "layout": "%s:%d" % (variant, size),
         "previewShown": values["previewSuppressed"] in (-1, 0xFFFFFFFF),
-        "icons": [(centre_x - half + i * slot + (slot - 32) // 2, centre_y + half + 8)
+        "icons": [(centre_x - 126 + i * 64 + 4, centre_y + half + 8)
                   for i in range(4)],
     }
 
@@ -174,6 +174,21 @@ def main():
             report["editorGlobals"] = editor
             report["menuOrigin"] = {k: integer(a) for k, a in MENU_ORIGIN.items()}
             report["row"] = editor_row(editor)
+            # Read-only evidence for controls drifting after map/menu changes.
+            menu_address = 0x00B97148
+            menu = struct.unpack("<17I", read(menu_address, 68))
+            report["editorMenu"] = {"items": hex(menu[0]), "origin": menu[1:3]}
+            report["editorItems"] = []
+            for index in range(64):
+                values = struct.unpack("<20I", read(menu[0] + index * 80, 80))
+                report["editorItems"].append({"index": index, "type": hex(values[0]),
+                    "position": values[1:3], "size": values[3:5],
+                    "render": hex(values[7]), "action": hex(values[5]),
+                    "ucID": struct.unpack("<h", read(menu[0] + index * 80 + 0x30, 2))[0],
+                    "parent": hex(values[19])})
+                if values[0] == 0x66:
+                    break
+            report["modalStack"] = struct.unpack("<6i", read(0x1126604, 24))
     finally:
         kernel32.CloseHandle(handle)
 

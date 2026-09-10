@@ -8,6 +8,5 @@ dependencies:
   ui: ">= 1.0.1"
   cffi: "^1.0.0"
   luajit: "^1.0.0"
-  gmResourceModifier: ">= 0.2.0"
 meta:
   version: 1.0.0

@@ -126,7 +126,7 @@ brokenGame = { Rendering = setmetatable({}, { __index = function() error("boom")
 -- A game whose rendering layer records what it was asked to draw.
 drawn = {}
 workingGame = { Rendering = {
-  ButtonState = { x = 301, y = 343, width = 48, height = 28, interacting = 0 },
+  ButtonState = { x = 274, y = 343, width = 60, height = 32, interacting = 0 },
   pDrawBufferChoiceValue = { [0] = 1 },
   textManager = "tm", textureRenderCore = "trc",
   renderTextToScreenConst = function(tm, text, x, y) drawn[#drawn + 1] = { text = text, x = x, y = y } end,
@@ -177,22 +177,74 @@ class TestButtonsInstall(ButtonsBase):
         self.assertEqual(added, 4)
         self.assertEqual(self.logged("ERROR"), [])
 
+    def test_reenable_does_not_duplicate_native_items(self):
+        _, menu = self.install()
+        before = self.walk(menu)
+        self.buttons.disable()
+        self.callback(menu, 0, "menuItemActionHandler")(1)
+        self.callback(menu, 0, "menuItemRenderFunction")(1)
+        self.assertEqual(self.clicks, [])
+        self.assertEqual(len(self.lua.globals().drawn), 0)
+        added, _ = self.install()
+        self.assertEqual(added, 4)
+        self.assertEqual(self.walk(menu), before)
+        self.callback(menu, 0, "menuItemActionHandler")(1)
+        self.assertEqual(self.clicks, [("import", "height")])
+
     def test_item_list_stays_terminated(self):
         _, menu = self.install()
         types = self.walk(menu)
         self.assertIsNotNone(types, "menu 17 lost its LAST_ENTRY terminator")
-        self.assertEqual(types[:15], MENU_17_TYPES, "the game's own items were disturbed")
+        self.assertEqual(types[4:], MENU_17_TYPES, "the game's own items were disturbed")
         self.assertEqual(len(types), 19)
 
     def test_buttons_are_standalone_items(self):
         """No interaction-group flag, or MainButtons would render them."""
         _, menu = self.install()
-        for i in range(15, 19):
+        for i in range(0, 4):
             item = menu["menuItems"][i]
             self.assertEqual(item["menuItemType"], 0x3)
             self.assertEqual(item["menuItemType"] & 0x03000000, 0)
             self.assertNotEqual(item["menuItemRenderFunction"]["address"], 0)
             self.assertNotEqual(item["menuItemActionHandler"]["address"], 0)
+
+    def test_native_menu_reload_does_not_replace_our_positions(self):
+        _, menu = self.install()
+        for i in range(0, 4):
+            item = menu["menuItems"][i]
+            original = (item.position.position.x, item.position.position.y)
+            # Menu::loadMenuElements at 0x4F69D0 resolves ucID >= 0 through
+            # the vanilla layout table. Zero-initialized appended items broke.
+            self.assertEqual(item.ucId_0x30, -1)
+            for _ in range(3):
+                if (item.ucId_0x30 or 0) >= 0:
+                    item.position.position.x = item.position.position.y = 0
+            self.assertEqual((item.position.position.x, item.position.position.y), original)
+
+    def test_invisible_vanilla_sp_hitboxes_do_not_swallow_height_clicks(self):
+        _, menu = self.install()
+        # Original menu17 items 2 and 9 remain hit-testable in SP despite
+        # their group renderer omitting them. These are measured native bounds.
+        for original, x, y, w, h in [(2, 50, 100, 365, 280), (9, 270, 342, 120, 30)]:
+            item = menu.menuItems[original + 4]
+            item.position.position.x, item.position.position.y = x, y
+            item.itemWidth, item.itemHeight = w, h
+        for action in range(4):
+            item = menu.menuItems[action]
+            x = item.position.position.x + item.itemWidth // 2
+            y = item.position.position.y + item.itemHeight // 2
+            hits = []
+            for index in range(19):
+                target = menu.menuItems[index]
+                p = target.position.position
+                if p.x <= x < p.x + (target.itemWidth or 0) and p.y <= y < p.y + (target.itemHeight or 0):
+                    hits.append(index)
+            self.assertEqual(hits[0], action, 'native traversal stops at first hit')
+            if action < 2:
+                self.assertIn(6, hits, 'fixture must reproduce the hidden overlap')
+            self.callback(menu, hits[0], "menuItemActionHandler")(action + 1)
+        self.assertEqual(self.clicks, [("import", "height"), ("export", "height"),
+                                      ("import", "terrain"), ("export", "terrain")])
 
     def test_install_logs_what_the_game_will_read(self):
         self.install()
@@ -211,9 +263,9 @@ class TestButtonsInstall(ButtonsBase):
         screen = self.buttons.installed()[1]["screen"]
         screen["offset"] = self.lua.table(x=5, y=7)
         self.assertEqual(self.buttons.reposition(17), 4)
-        self.assertEqual(menu["menuItems"][15]["position"]["position"]["x"], 301 + 5)
-        self.assertEqual(menu["menuItems"][15]["position"]["position"]["y"], 343 + 7)
-        self.assertEqual(menu["menuItems"][14]["position"]["position"]["x"], 0)
+        self.assertEqual(menu["menuItems"][0]["position"]["position"]["x"], 274 + 5)
+        self.assertEqual(menu["menuItems"][0]["position"]["position"]["y"], 343 + 7)
+        self.assertEqual(menu["menuItems"][18]["position"]["position"]["x"], 0)
 
     def test_addMenuItem_would_have_broken_the_menu(self):
         """Pins the root cause, so nobody switches back to addMenuItem."""
@@ -234,7 +286,7 @@ class TestCallbacksNeverRaise(ButtonsBase):
             chrome[#chrome+1] = {blend=blend, target=target}
           end
           icons.draw = function(key, rendering, x, y)
-            assert(rendering.pDrawBufferChoiceValue[0] == 1)
+            assert(rendering.pDrawBufferChoiceValue[0] == 0)
             pictures[#pictures+1] = {key=key, x=x, y=y}
           end
         ''')
@@ -244,10 +296,10 @@ class TestCallbacksNeverRaise(ButtonsBase):
                     ("import_textures", "import", "terrain"),
                     ("export_textures", "export", "terrain")]
         for i, (key, mode, what) in enumerate(expected):
-            self.callback(menu, 15+i, "menuItemRenderFunction")(i+1)
-            self.callback(menu, 15+i, "menuItemActionHandler")(i+1)
+            self.callback(menu, i, "menuItemRenderFunction")(i+1)
+            self.callback(menu, i, "menuItemActionHandler")(i+1)
             pic = self.lua.globals().pictures[i+1]
-            self.assertEqual((pic.key, pic.x, pic.y), (key, 309, 348))
+            self.assertEqual((pic.key, pic.x, pic.y), (key, 278, 348))
         self.assertEqual(self.clicks, [(mode, what) for _, mode, what in expected])
         self.assertEqual(len(self.lua.globals().chrome), 4)
         self.assertEqual(len(self.lua.globals().drawn), 0, "artwork was replaced by text")
@@ -259,13 +311,13 @@ class TestCallbacksNeverRaise(ButtonsBase):
           workingGame.Rendering.renderButtonBackground = function() error("draw failed") end
         ''')
         _, menu = self.install()
-        self.callback(menu, 15, "menuItemRenderFunction")(1)
+        self.callback(menu, 0, "menuItemRenderFunction")(1)
         self.assertEqual(self.lua.globals().workingGame.Rendering.pDrawBufferChoiceValue[0], 2)
         self.assertTrue(any("draw failed" in m for m in self.logged("ERROR")))
 
     def test_render_draws_the_label(self):
         _, menu = self.install()
-        self.callback(menu, 15, "menuItemRenderFunction")(1)
+        self.callback(menu, 0, "menuItemRenderFunction")(1)
         drawn = list(self.lua.globals().drawn.values())
         self.assertEqual(len(drawn), 1)
         self.assertEqual(drawn[0]["text"], "H in")
@@ -274,7 +326,7 @@ class TestCallbacksNeverRaise(ButtonsBase):
     def test_render_error_is_contained_and_logged(self):
         g = self.lua.globals()
         _, menu = self.install(game=g.brokenGame)
-        render = self.callback(menu, 15, "menuItemRenderFunction")
+        render = self.callback(menu, 0, "menuItemRenderFunction")
         for _ in range(10):
             render(1)  # must not raise into the caller -- that caller is the game
         errors = self.logged("ERROR")
@@ -284,7 +336,7 @@ class TestCallbacksNeverRaise(ButtonsBase):
 
     def test_step_markers_stop_after_the_first_calls(self):
         _, menu = self.install()
-        render = self.callback(menu, 15, "menuItemRenderFunction")
+        render = self.callback(menu, 0, "menuItemRenderFunction")
         for _ in range(10):
             render(1)
         markers = [m for m in self.logged("INFO") if "[render import_heightmap #" in m]
@@ -295,14 +347,14 @@ class TestCallbacksNeverRaise(ButtonsBase):
 
     def test_click_runs_the_action(self):
         _, menu = self.install()
-        self.callback(menu, 16, "menuItemActionHandler")(2)
+        self.callback(menu, 1, "menuItemActionHandler")(2)
         self.assertEqual(self.clicks, [("export", "height")])
 
     def test_click_error_is_contained(self):
         def explode(mode, what):
             raise RuntimeError("action exploded")
         _, menu = self.install(on_click=explode)
-        self.callback(menu, 15, "menuItemActionHandler")(1)
+        self.callback(menu, 0, "menuItemActionHandler")(1)
         self.assertTrue(any("click import_heightmap failed" in m for m in self.logged("ERROR")))
 
 

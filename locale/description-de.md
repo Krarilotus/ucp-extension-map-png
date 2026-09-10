@@ -1,3 +1,3 @@
-Höhen- und Gelände-PNGs (400×400) über vier Schaltflächen unter der Minikarte im Karteneditor importieren/exportieren.
+Höhenkarten und Terrain als PNG (400×400) im Karteneditor importieren/exportieren. Dateiauswahl in `mapping/`; Überschreiben nur nach Bestätigung.
 
-Dateien: `mapping/map_height.png` und `mapping/map_tex.png`. Feste Dateinamen; Exporte überschreiben vorhandene Dateien. Noch keine Dateiauswahl.
+Button-Grafiken von Monsterfish_. Für eine einfach bearbeitbare Offline-Photoshop-Vorlage bitte Monsterfish_ kontaktieren.

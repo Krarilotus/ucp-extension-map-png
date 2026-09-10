@@ -21,8 +21,9 @@ class TestLocales(unittest.TestCase):
             self.assertTrue(all(isinstance(v, str) and v.strip() for v in locale.values()), lang)
             description = (ROOT / "locale" / ("description-" + lang + ".md")).read_text(encoding="utf-8")
             self.assertLess(len(description), 550, lang)
-            self.assertIn("mapping/map_height.png", description)
-            self.assertIn("mapping/map_tex.png", description)
+            self.assertIn("mapping/", description)
+            self.assertIn("Monsterfish_", description, lang)
+            self.assertIn("Photoshop", description, lang)
             self.assertNotIn("\ufffd", text + description)
 
     def test_options_use_the_gui_schema_and_real_module_keys(self):
@@ -32,12 +33,13 @@ class TestLocales(unittest.TestCase):
                          {"map-png.palette", "map-png.snapshot-before-import"})
         for option in data["options"]:
             self.assertIn(option["display"], {"Choice", "Switch"})
-        # Do not advertise the unfinished overwrite confirmation as functional.
+        # Overwrite confirmation is mandatory, not a user-disableable option.
         self.assertNotIn("confirm-overwrite", str(data))
 
     def test_store_package_includes_runtime_images_and_locales(self):
         entries = ET.parse(ROOT / "files.xml").findall("./files/file")
         sources = {e.attrib["src"] for e in entries}
         self.assertTrue({"init.lua", "definition.yml", "options.yml", "mappng", "resources", "locale"} <= sources)
+        self.assertTrue({"CREDITS.md", "licenses"} <= sources)
         self.assertTrue(all((ROOT / src).exists() for src in sources))
         self.assertFalse({"tests", "tools", ".git", "IMPLEMENTATION_PLAN.md"} & sources)

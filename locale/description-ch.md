@@ -1,3 +1,3 @@
-通过地图编辑器小地图下方的四个按钮，导入或导出高度和地形 PNG（400×400）。
+在地图编辑器中导入或导出高度和地形 PNG（400×400）。从 `mapping/` 选择文件；覆盖前须确认。
 
-文件：`mapping/map_height.png` 和 `mapping/map_tex.png`。文件名固定，导出会覆盖现有文件。暂不支持文件选择。
+按钮图案由 Monsterfish_ 制作。如需易于编辑的离线 Photoshop 模板，请联系 Monsterfish_。

@@ -1,3 +1,3 @@
-Importa/exporta PNG de altura y terreno (400×400) con cuatro botones bajo el minimapa del editor de mapas.
+Importa/exporta PNG de altura y terreno (400×400) en el editor de mapas. Elige archivos en `mapping/`; confirma antes de sobrescribir.
 
-Archivos: `mapping/map_height.png` y `mapping/map_tex.png`. Nombres fijos; la exportación sobrescribe los archivos existentes. Aún no hay selector de archivos.
+Ilustraciones de los botones de Monsterfish_. Contacta con Monsterfish_ para obtener una plantilla de Photoshop fácil de editar sin conexión.

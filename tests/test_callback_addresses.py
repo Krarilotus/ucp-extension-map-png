@@ -15,7 +15,7 @@ class TestCallbackAddresses(ButtonsBase):
     def test_every_item_gets_a_real_address(self):
         _, menu = self.install()
         callbacks = self.lua.globals().fakeCallbacks
-        for i in range(15, 19):
+        for i in range(4):
             item = menu["menuItems"][i]
             for field in ("menuItemRenderFunction", "menuItemActionHandler"):
                 address = item[field]["address"]

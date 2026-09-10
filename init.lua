@@ -47,6 +47,7 @@ local function onClick(mode, what)
     else
       log(ERROR, string.format("map-png: %s %s failed: %s", mode, what, tostring(result)))
     end
+    return ok, result
   end)
 end
 
@@ -56,7 +57,6 @@ function mappng:enable(config)
   state.options = {
     folder = config["mapping-folder"] or paths.DEFAULT_FOLDER,
     paletteName = config["palette"] or "mappng",
-    confirmOverwrite = config["confirm-overwrite"] ~= false,
     snapshotBeforeImport = config["snapshot-before-import"] ~= false,
   }
 
@@ -79,18 +79,19 @@ function mappng:enable(config)
       log(WARNING, string.format("map-png: map layers not found: %s", tostring(base)))
     end
 
-    -- The preview layout globals were read out of one specific build. On any
-    -- other, place the row for a 400x400 singleplayer map and let setOffset fix it.
+    -- Do not install unusable controls or touch layout globals on another build.
     local layoutKnown = ok and build == LAYOUT_BUILD
     screens.setGlobalsAvailable(layoutKnown)
     if not layoutKnown then
-      log(WARNING, "map-png: button layout globals are only known for "
-        .. LAYOUT_BUILD .. "; the row will not follow the map size or layout")
+      log(WARNING, "map-png: native PNG controls require " .. LAYOUT_BUILD)
+      return
     end
 
     icons.load()
 
-    local game = modules.ui:access().game
+    local ui = modules.ui:access()
+    if layoutKnown then filedialog.initialize(ffi, ui, state.png) end
+    local game = ui.game
     local added = buttons.install(ffi, game, onClick)
     if added == 0 then
       log(WARNING, "map-png: no buttons were added; see the errors above")
@@ -99,6 +100,8 @@ function mappng:enable(config)
 end
 
 function mappng:disable()
+  buttons.disable()
+  filedialog.cancel()
   icons.unload()
   gdiplus.shutdown(state.png)
   state.png = nil
