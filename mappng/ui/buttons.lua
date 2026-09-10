@@ -2,10 +2,24 @@
 ---
 --- Creates the four menu items and attaches them to the target screen.
 ---
---- The mechanism is the one `extension-automarket` uses for its market button:
---- build a MenuItem with a cdecl render function and a cdecl action handler,
---- then hand it to `Menu:addMenuItem`, which grows the game's item array for us
---- rather than requiring a patch of the static arrays.
+--- Two rules this file has to follow, both learned from a crash:
+---
+--- 1. Items go in with `Menu:insertMenuItem`, never `Menu:addMenuItem`.
+---    `Menu:fromID` points the write index at the menu's LAST_ENTRY (0x66)
+---    terminator, and `addMenuItem` writes over it. On a menu it had to
+---    reallocate, the slots after the old terminator are zero-filled, not 0x66,
+---    so the item list ends up with no terminator at all and the game walks
+---    off the end of it. `insertMenuItem` shifts the terminator down instead.
+---    This is also what `extension-automarket` does. `addMenuItem` is only safe
+---    on menus built with `Menu:createMenu`, which pre-fills every slot with 0x66.
+---
+--- 2. The items are plain NORMAL_ELEMENT (3), with no interaction-group flag.
+---    An item flagged PART_OF_INTERACTION_GROUP (0x02000000) uses the render and
+---    action functions of its group's leader, and menu 17's last group is led
+---    by MapEditorProperties_MainButtons -- which would then be called with our
+---    parameters. The game's own standalone items with their own functions are
+---    type 3: the lobby's minimap item (menu 20, [22]) and the scenario menu's
+---    buttons (menu 1002, [16], [17]).
 ---
 --- Positions are menu-local; see mappng/ui/screens.lua for why that stays
 --- aligned with the preview at any resolution.
@@ -18,21 +32,14 @@
 --- Callbacks from the main Lua state are supported: `modules.cffi` is a build of
 --- cffi-lua, which implements LuaJIT-compatible callbacks (libffi closures) and
 --- parses `__cdecl` as a real calling convention rather than ignoring it.
----
---- Note that automarket puts its equivalent callbacks in a LuaJIT state
---- instead. If these turn out to misbehave -- libffi closures are heavier than
---- LuaJIT's, and this render function runs every frame -- the fallback is to
---- move this file into a `ui/` subtree loaded with
---- `modules.ui:createMenuFromFile` and invoke the actions via `ui:sendEvent`,
---- which is the route automarket already proves works.
 
 local screens = require("mappng.ui.screens")
 local icons = require("mappng.ui.icons")
 
 local M = {}
 
--- NORMAL_ELEMENT (3) | PART_OF_INTERACTION_GROUP (0x02000000)
-local MENU_ITEM_TYPE = 0x02000003
+M.MENU_ITEM_TYPE = 0x3 -- NORMAL_ELEMENT, standalone
+M.LAST_ENTRY = 0x66
 local RENDER_FUNCTION_TYPE_SIMPLE = 0x1
 
 local state = { items = {}, callbacks = {}, layoutKey = nil }
@@ -110,6 +117,12 @@ local function makeAction(ffi, action, onClick)
   return anchor(handler)
 end
 
+--- True if the menu's item list still ends in a LAST_ENTRY terminator at the
+--- write index, which is where Menu:insertMenuItem keeps it.
+function M.isTerminated(menu)
+  return menu.menuItems[menu.menuItemsIndex].menuItemType == M.LAST_ENTRY
+end
+
 --- Attaches all four buttons to every target screen.
 ---
 ---@param ffi table the cffi interface
@@ -123,19 +136,23 @@ function M.install(ffi, game, onClick)
   for _, screen in ipairs(screens.SCREENS) do
     local ok, err = pcall(function()
       local menu = Menu:fromID(screen.menuID)
+      if not M.isTerminated(menu) then
+        error("the menu's item list is not terminated where expected; not touching it")
+      end
 
       for index, action in ipairs(screens.ACTIONS) do
         local position = screens.iconPosition(screen, index, layout)
         local render = makeRender(ffi, game, action)
         local handler = makeAction(ffi, action, onClick)
 
-        -- Where addMenuItem is about to put this item. Recorded so the row can
-        -- be moved later. The Menu object is stored rather than the item
-        -- pointer, because reallocateMenuItems replaces the array wholesale.
+        -- Insert just before the terminator, which shifts it down one slot.
+        -- Later inserts land after this one, so the recorded index stays valid.
+        -- The Menu object is kept rather than the item pointer, because
+        -- reallocateMenuItems replaces the array wholesale.
         local itemIndex = menu.menuItemsIndex
 
-        menu:addMenuItem({
-          menuItemType = MENU_ITEM_TYPE,
+        menu:insertMenuItem(itemIndex, {
+          menuItemType = M.MENU_ITEM_TYPE,
           menuItemRenderFunctionType = RENDER_FUNCTION_TYPE_SIMPLE,
           position = { position = { x = position.x, y = position.y } },
           itemWidth = screens.ICON_WIDTH,
@@ -156,6 +173,12 @@ function M.install(ffi, game, onClick)
           menu = menu,
           itemIndex = itemIndex,
         }
+      end
+
+      if not M.isTerminated(menu) then
+        -- Should be impossible with insertMenuItem; if it happens the game will
+        -- crash the next time it walks this menu, so say so loudly.
+        error("the menu's item list lost its terminator after inserting the buttons")
       end
 
       local first = screens.iconPosition(screen, 1, layout)
