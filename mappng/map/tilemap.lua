@@ -4,29 +4,34 @@
 ---
 --- Two independent sources are used and cross-checked against each other:
 ---
---- 1. The map-section address table at `SECTION_TABLE_START`, an array of
----    16-byte `MapSectionAddress` records (`address, unknown, size,
----    compressed, sectionId`). This is what `sourcehold` walks from outside
----    the process. Data-driven, so it survives the game moving its
----    allocations around.
+--- 1. The map-section address table, an array of 16-byte `MapSectionAddress`
+---    records (`address, unknown, size, compressed, sectionId`). This is what
+---    `sourcehold` walks from outside the process. The table is static data in
+---    `.data`, so it can also be checked against the exe on disk -- see
+---    tests/test_tilemap_binary.py.
 ---
 --- 2. The `TileMapState` singleton layout from OpenSHC
 ---    (`OpenSHC/Map/TileMapState.hpp`), which gives each layer a fixed offset
 ---    from a single base.
 ---
---- The two agree: `sourcehold` hardcodes `futureMapOrientation = 0x01FE7AA8`,
---- and OpenSHC puts `DAT_TileMapState` at `0x01A93208` with
---- `DAT_FutureMapOrientation` at `+0x5548A0` -- which is exactly `0x01FE7AA8`.
---- Deriving the base from the section table and asserting it matches every
---- layer offset means a version mismatch fails loudly instead of writing 80400
---- tiles into the wrong allocation.
+--- The base is derived from the table and every layer offset must agree with
+--- it. For Crusader 1.41 that lands on OpenSHC's `0x01A93208`, and sourcehold's
+--- hardcoded `futureMapOrientation = 0x01FE7AA8` is exactly that base plus
+--- `+0x5548A0`.
+---
+--- Crusader Extreme 1.41.1-E has the identical `TileMapState` layout, relocated
+--- to `0x02526708`; its section table is a different address. Each known table
+--- is tried in turn and accepted only if it passes the full cross-check, so
+--- trying one on the wrong executable fails safe instead of writing 80400 tiles
+--- into the wrong allocation.
 
 local M = {}
 
--- Stronghold Crusader 1.41 (western). Same constants sourcehold uses in
--- `read_address_list_shc`.
-M.SECTION_TABLE_START = 0x00B92A58
-M.SECTION_TABLE_END = 0x00B93208
+-- Same constants sourcehold uses in read_address_list_shc / _shce.
+M.SECTION_TABLES = {
+  { name = "Crusader 1.41", start = 0x00B92A58, stop = 0x00B93208 },
+  { name = "Crusader Extreme 1.41.1-E", start = 0x00B92BE8, stop = 0x00B93398 },
+}
 M.SECTION_RECORD_SIZE = 16
 
 -- Offsets within TileMapState, from OpenSHC.
@@ -53,13 +58,19 @@ M.SECTIONS = {
   [1045] = { field = "DefaultHeightLayer", size = 80400 },
 }
 
---- Reads the map-section address table.
+--- OpenSHC puts `DAT_MinimapViewState` immediately before `DAT_TileMapState`:
+--- `0x01A93208 - 0x01A31610` is exactly `sizeof(MinimapViewState)`.
+M.MINIMAP_VIEW_STATE_SIZE = 0x00061BF8
+
+--- Reads one map-section address table.
 ---@param core table the UCP core API
+---@param start number first record
+---@param stop number one past the last record
 ---@return table sectionId -> { address = number, size = number }
-function M.readSectionTable(core)
+function M.readSectionTable(core, start, stop)
   local sections = {}
-  local address = M.SECTION_TABLE_START
-  while address < M.SECTION_TABLE_END do
+  local address = start
+  while address < stop do
     local record = {
       address = core.readInteger(address),
       size = core.readInteger(address + 8),
@@ -73,41 +84,59 @@ function M.readSectionTable(core)
   return sections
 end
 
---- Derives the TileMapState base from the section table and verifies that every
---- layer we care about lands where OpenSHC says it should.
----
----@param core table the UCP core API
----@return number base
-function M.resolveBase(core)
-  local sections = M.readSectionTable(core)
-
+--- Derives the base from one table, or explains why it cannot.
+---@return number|nil base, string|nil problem
+local function deriveBase(sections)
   local base
   for sectionId, spec in pairs(M.SECTIONS) do
     local section = sections[sectionId]
     if section == nil then
-      error(string.format(
-        "map-png: section %d is missing from the section table at 0x%X; "
-        .. "this build of Stronghold Crusader is not supported",
-        sectionId, M.SECTION_TABLE_START))
+      return nil, string.format("section %d is missing", sectionId)
     end
     if section.size ~= spec.size then
-      error(string.format(
-        "map-png: section %d has size %d, expected %d",
-        sectionId, section.size, spec.size))
+      return nil, string.format("section %d has size %d, expected %d",
+        sectionId, section.size, spec.size)
     end
 
     local candidate = section.address - M.OFFSETS[spec.field]
     if base == nil then
       base = candidate
     elseif base ~= candidate then
-      error(string.format(
-        "map-png: section %d implies TileMapState base 0x%X but an earlier "
-        .. "section implied 0x%X; refusing to write",
-        sectionId, candidate, base))
+      return nil, string.format(
+        "section %d implies base 0x%X but another section implied 0x%X",
+        sectionId, candidate, base)
+    end
+  end
+  return base, nil
+end
+
+--- Finds the TileMapState base by trying each known section table.
+---
+---@param core table the UCP core API
+---@return number base, string build name of the table that matched
+function M.resolveBase(core)
+  local problems = {}
+
+  for _, candidate in ipairs(M.SECTION_TABLES) do
+    local ok, sections = pcall(M.readSectionTable, core, candidate.start, candidate.stop)
+    if ok then
+      local base, problem = deriveBase(sections)
+      if base ~= nil then
+        return base, candidate.name
+      end
+      problems[#problems + 1] = string.format("%s: %s", candidate.name, problem)
+    else
+      problems[#problems + 1] = string.format("%s: %s", candidate.name, tostring(sections))
     end
   end
 
-  return base
+  error("map-png: no known map-section table matches this executable; "
+    .. "refusing to touch the map\n  " .. table.concat(problems, "\n  "))
+end
+
+--- Address of MinimapViewState for a given TileMapState base.
+function M.minimapViewStateAddress(base)
+  return base - M.MINIMAP_VIEW_STATE_SIZE
 end
 
 --- Builds FFI views of the four layers plus the redraw flags.
@@ -116,7 +145,7 @@ end
 ---@param ffi table the cffi interface
 ---@return table view
 function M.open(core, ffi)
-  local base = M.resolveBase(core)
+  local base, build = M.resolveBase(core)
 
   local function at(field, ctype)
     return ffi.cast(ctype, base + M.OFFSETS[field])
@@ -124,6 +153,7 @@ function M.open(core, ffi)
 
   return {
     base = base,
+    build = build,
     layers = {
       logic1 = at("LogicLayer", "int32_t *"),
       logic2 = at("Logic2Layer", "uint8_t *"),
