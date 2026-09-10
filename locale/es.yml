@@ -1,8 +1,1 @@
-{
-  "palette": "Colores del terreno",
-  "palette_help": "Los colores de Sourcehold pueden cambiar el terreno al volver a importar.",
-  "palette_default": "Colores distintos",
-  "palette_sourcehold": "Colores de Sourcehold",
-  "snapshot": "Guardar copia antes de importar",
-  "snapshot_help": "Restaurar desde la consola de UCP."
-}
+{}

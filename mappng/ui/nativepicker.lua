@@ -63,7 +63,8 @@ local function refreshPreview(name)
     if name then image = png.readRGB(state.png, paths.resolve(state.model.folder, name))
     else image = actions.preview(state.model.what) end
     assert(image.width == 400 and image.height == 400, "map-png: expected a 400x400 PNG")
-    return artwork.preview(image, 160, 160)
+    local size = state.model.mode == "import" and layout.importPreviewSize or 160
+    return artwork.preview(image, size, size)
   end)
   if ok then
     state.preview = result
@@ -182,22 +183,24 @@ function M.initialize(ffi, game, manager, pngBound)
     items[#items + 1] = controls.item({x=x, y=y, width=width, height=height},
       number(ffi.cast("unsigned long", render)), number(ffi.cast("unsigned long", action)))
   end
-  item(28, 270, 264, 32, function(b)
+  item(28, layout.filenameY, 264, 32, function(b)
     if state.model.mode == "export" then state.inputRender(0)
     elseif state.model.name ~= "" then boundedText(paths.toGameText(state.model.name), b.x + 8, b.y + 7, 248) end
   end, function() end)
   local function button(x, y, w, label, click)
-    item(x, y, w, 28, function(b)
+    item(x, y, w, layout.buttonHeight, function(b)
       game.Rendering.renderButtonBackground(game.Rendering.alphaAndButtonSurface, 0, 0)
       local value = label()
       if type(value) ~= "string" then value = state.ffi.string(value) end
       boundedText(value, b.x + 8, b.y + 6, w - 16)
     end, click)
   end
-  button(28, 344, 264, function()
+  button(28, layout.folderY, 264, function() return paths.toGameText(i18n.folderLabel()) end,
+    function() paths.openFolder(state.model.folder) end)
+  button(28, layout.confirmY, 264, function()
     return state.status == "overwrite" and nativeText(22) or actionText()
   end, confirm)
-  button(28, 382, 264, function() return nativeText(17) end, function() finish(nil) end)
+  button(28, layout.backY, 264, function() return nativeText(17) end, function() finish(nil) end)
   item(layout.listX, layout.listY, layout.listWidth, layout.rowHeight, function(b)
     state.rowBackground(game.Rendering.pencilRenderCore, 0, 1, 0)
     text(nativeText(27), b.x + 8, b.y + 3)
@@ -257,15 +260,20 @@ function M.initialize(ffi, game, manager, pngBound)
         x + layout.scrollX + layout.scrollWidth, y + layout.bottom,
         r.Colors.pGreyishYellow[0])
       if state.preview then
-        artwork.drawPreview(state.preview, r, x + 80, y + 86)
+        artwork.drawPreview(state.preview, r, x + 160 - state.preview.width // 2, y + layout.previewY)
       else
         text(paths.toGameText(state.previewError or i18n.message("select")), x + 34, y + 154)
       end
-      if state.status == "overwrite" then text(nativeText(30), x + 28, y + 316) end
-      if state.status == "invalid_name" or state.status == "missing_file" then
-        text(paths.toGameText(i18n.message(state.status == "invalid_name" and "name" or "select")), x + 28, y + 316)
+      if state.model.mode == "import" then
+        for line, warning in ipairs(i18n.importWarning()) do
+          boundedText(paths.toGameText(warning), x + 28, y + layout.warningY + (line - 1) * 18, 264)
+        end
       end
-      if state.status == "invalid_png" then text(paths.toGameText(i18n.message("invalid")), x + 28, y + 316) end
+      if state.status == "overwrite" then text(nativeText(30), x + 28, y + layout.statusY) end
+      if state.status == "invalid_name" or state.status == "missing_file" then
+        text(paths.toGameText(i18n.message(state.status == "invalid_name" and "name" or "select")), x + 28, y + layout.statusY)
+      end
+      if state.status == "invalid_png" then text(paths.toGameText(i18n.message("invalid")), x + 28, y + layout.statusY) end
     end)
     if state.input[0].returned ~= 0 then
       state.input[0].returned = 0

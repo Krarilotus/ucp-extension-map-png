@@ -7,4 +7,7 @@ M.bottom = M.rowsY + M.pageSize * M.rowHeight
 M.scrollX = M.listX + M.listWidth
 M.trackY = M.rowsY + M.rowHeight
 M.trackHeight = (M.pageSize - 2) * M.rowHeight
+M.previewY, M.importPreviewSize, M.warningY = 86, 128, 218
+M.filenameY, M.statusY, M.folderY = 258, 294, 316
+M.confirmY, M.backY, M.buttonHeight = 352, 390, 28
 return M

@@ -28,6 +28,13 @@ Live checklist, in both singleplayer scenario and multiplayer/skirmish layouts:
 7. Test scrolling with more than 16 PNGs, Unicode names, empty folder, deleted file,
    malformed PNG and wrong dimensions. Failures must not alter map layers.
 8. Repeat for height and terrain, then restart and test native map save/load again.
+9. Open folder opens this game's mapping directory (also with spaces/non-ASCII
+   characters in its path), without confirming export/import or closing the picker.
+   Reopen the picker to refresh its file list after changing files in Windows.
+10. Both import dialogs visibly warn about bugs with placed objects/structures,
+    before selecting or confirming a PNG. The warning must not overlap the preview,
+    filename or buttons. Import does not automatically remove entities; test on
+    disposable maps. The layer snapshot is not a complete object/map backup.
 
 Store PR remains on hold until the requested live flow works. Action labels use
 the installed game's language, not generic Load/Save. Back/confirmation strings

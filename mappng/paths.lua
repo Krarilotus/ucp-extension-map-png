@@ -34,6 +34,8 @@ void * __stdcall CreateFileW(const wchar_t *path, unsigned long access, unsigned
 unsigned long __stdcall GetFileSize(void *file, unsigned long *high);
 int __stdcall ReadFile(void *file, void *buffer, unsigned long size, unsigned long *read, void *overlapped);
 int __stdcall CloseHandle(void *handle);
+void * __stdcall ShellExecuteW(void *window, const wchar_t *operation,
+  const wchar_t *file, const wchar_t *parameters, const wchar_t *directory, int show);
 ]]
 
 local ERROR_ALREADY_EXISTS = 183
@@ -117,6 +119,18 @@ local function isDirectory(path)
     return false
   end
   return (attributes & FILE_ATTRIBUTE_DIRECTORY) ~= 0
+end
+
+-- Open a verified directory with Windows' folder handler, without a shell command
+-- string. Spaces/Unicode are passed as one wide path; no PNG is executed.
+function M.openFolder(path)
+  assert(isDirectory(path), "map-png: PNG folder does not exist")
+  local ffi = state.ffi
+  state.shell32 = state.shell32 or ffi.load("shell32")
+  local result = state.shell32.ShellExecuteW(nil, wide("open"), wide(path), nil, nil, 1)
+  local code = (ffi.tonumber or tonumber)(ffi.cast("long", result))
+  assert(code > 32, "map-png: could not open PNG folder (" .. tostring(code) .. ")")
+  return true
 end
 
 --- Ensures `<game>/<folder>/` exists and returns its absolute path.

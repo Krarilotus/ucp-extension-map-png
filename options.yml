@@ -1,24 +1,3 @@
 meta:
   version: 1.0.0
-options:
-- url: map-png.palette
-  header: '{{palette}}'
-  text: '{{palette_help}}'
-  hasHeader: true
-  display: Choice
-  contents:
-    type: string
-    value: mappng
-    choices:
-      - name: mappng
-        text: '{{palette_default}}'
-      - name: sourcehold
-        text: '{{palette_sourcehold}}'
-
-- url: map-png.snapshot-before-import
-  text: '{{snapshot}}'
-  description: '{{snapshot_help}}'
-  display: Switch
-  contents:
-    type: boolean
-    value: true
+options: []

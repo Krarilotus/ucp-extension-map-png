@@ -12,6 +12,13 @@ class TestPickerLayout(unittest.TestCase):
         self.assertEqual(layout.trackY, layout.rowsY + 20)
         self.assertEqual(layout.trackY + layout.trackHeight, layout.bottom - 20)
         self.assertEqual(layout.bottom - layout.rowsY, layout.pageSize * layout.rowHeight)
+        self.assertLessEqual(layout.filenameY + 32, layout.statusY)
+        self.assertLessEqual(layout.statusY + 18, layout.folderY)
+        self.assertLess(layout.folderY + layout.buttonHeight, layout.confirmY)
+        self.assertLess(layout.confirmY + layout.buttonHeight, layout.backY)
+        self.assertLessEqual(layout.previewY + layout.importPreviewSize, layout.warningY)
+        self.assertLess(layout.warningY + 36, layout.filenameY)
+        self.assertLess(layout.backY + layout.buttonHeight, layout.height - 8)
 
     def test_native_scroll_protocol_clamps_drag_arrows_and_empty_lists(self):
         lua = lua_harness.runtime()
