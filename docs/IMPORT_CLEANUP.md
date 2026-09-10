@@ -1,4 +1,4 @@
-# Destructive import contract (implementation pending)
+# Native import cleanup (live acceptance pending)
 
 Both height and terrain imports must remove placed objects and structures before
 applying the PNG. Show one localized warning below the PNG preview; do not repeat
@@ -42,6 +42,27 @@ and cancellation remove nothing. Save and reload the cleared map and check for
 stale unit/building/navigation references. Never label clearing complete based
 only on screenshots of disappearing sprites.
 
-Current released test.1 and current runtime do NOT perform this cleanup. Do not
-change the runtime warning to promise deletion until the native sequence is
-implemented and verified. The existing warning remains accurate in the meantime.
+Released test.1/test.2 do NOT perform cleanup. The current working implementation
+uses a shared staged transaction for both PNG imports and a native adapter:
+0x421990 buildings and linked duplicates, 0x4F2070 trees, 0x4F2220 rocks,
+0x4F9F00 wall tiles and decorations. The last routine invokes 0x4019D0 to schedule
+decorations (entity types 10..15) for native deletion and clear their display flag.
+Eraser effects are left to the engine's normal lifecycle.
+
+Preflight checks supported build, signatures, record bounds and unit occupancy
+before deleting anything. Units occupying wall/decorative tiles cause refusal.
+Postconditions check active records, footprints and unit logical states before
+committing staged PNG data. Building teardown may adjust workers' building-related
+AI; preserving units does not mean every byte of their AI state remains unchanged.
+
+This is not atomic rollback: a native postcondition failure may leave objects
+removed, but the PNG is not applied and rendering is invalidated. Layer-only undo
+is invalidated before deletion because it cannot resurrect objects safely.
+
+Sourcehold's examples/process_wiping_sections.py only writes zero bytes into a
+section; it does not perform live entity/owner/footprint bookkeeping. That is why
+this adapter uses native teardown rather than section wiping. OpenSHC headers and
+the normal 1.41 executable are the reference sources; CREDITS.md applies.
+
+Offline tests and function signatures are checked. The live acceptance matrix
+above is still required: do not label this fully verified safe yet.

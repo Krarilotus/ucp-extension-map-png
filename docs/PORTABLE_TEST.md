@@ -49,7 +49,8 @@ Coverage is editor properties (menu 17), not every map-selection/gameplay menu.
 Report game/UCP versions, game language, screenshots and relevant `ucp3.log` errors.
 See CREDITS.md for attribution and open release-license checks.
 
-**Import limitation:** automatic removal of placed objects and structures is not
-implemented yet. The import dialog warns about bugs with those placements; test
-on disposable maps. Units are not deliberately removed. This build must not be
-treated as a verified populated-map import workflow.
+**Import cleanup:** both imports remove buildings, trees, rocks and wall/decorative
+objects using native teardown before applying the PNG. Units are not deliberately
+removed; move units off walls/decorative tiles if preflight refuses the import.
+Layer-only undo is unavailable. This cleanup still needs live save/reload testing
+on disposable maps; it is not yet a verified populated-map import workflow.

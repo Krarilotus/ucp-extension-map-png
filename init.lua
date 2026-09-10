@@ -38,9 +38,7 @@ local function onClick(mode, what)
       return
     end
 
-    local ok, result = pcall(actions.run, mode, what, name, {
-      snapshot = state.options.snapshotBeforeImport,
-    })
+    local ok, result = pcall(actions.run, mode, what, name)
 
     if ok then
       log(INFO, string.format("map-png: %s %s -> %s", mode, what, tostring(result)))
@@ -57,7 +55,6 @@ function mappng:enable(config)
   state.options = {
     folder = config["mapping-folder"] or paths.DEFAULT_FOLDER,
     paletteName = config["palette"] or "mappng",
-    snapshotBeforeImport = config["snapshot-before-import"] ~= false,
   }
 
   ---@type CFFIInterface

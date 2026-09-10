@@ -11,6 +11,7 @@ local height = require("mappng.map.height")
 local terrain = require("mappng.map.terrain")
 local png = require("mappng.png")
 local paths = require("mappng.paths")
+local cleanup = require("mappng.map.cleanup")
 
 local M = {}
 
@@ -45,8 +46,8 @@ function M.preview(what)
   return terrain.export(view().layers, state.lookup, state.palette, diamond.SIZE)
 end
 
---- Keeps one level of undo for an import.
-local function snapshot(kind, layers)
+--- Allocate typed staging buffers before touching live data.
+local function stage(kind, layers)
   local ffi = state.ffi
   local saved = {}
   local fields = kind == "height" and { "defaultHeight", "height" } or { "logic1", "logic2" }
@@ -55,14 +56,36 @@ local function snapshot(kind, layers)
     -- Explicit, because indexing a layer yields a plain Lua number, which
     -- ffi.sizeof cannot size. LogicLayer is int32; the others are bytes.
     local elementSize = (field == "logic1") and 4 or 1
-    local copy = ffi.new("uint8_t[?]", diamond.TILE_COUNT * elementSize)
+    local copy = ffi.new(field == 'logic1' and 'int32_t[?]' or 'uint8_t[?]', diamond.TILE_COUNT)
     ffi.copy(copy, source, diamond.TILE_COUNT * elementSize)
     saved[field] = { data = copy, bytes = diamond.TILE_COUNT * elementSize }
   end
-  state.snapshots[kind] = saved
+  local staged = {}
+  for field, entry in pairs(saved) do staged[field] = entry.data end
+  return staged, saved
 end
 
---- Restores the snapshot taken before the last import of `kind`.
+-- One transaction boundary for both imports: decode/convert before touching
+-- live objects, native cleanup, verify, then commit only the selected layer.
+local function importImage(kind, image)
+  local v = view()
+  local staged, buffers = stage(kind, v.layers)
+  local report
+  if kind == 'height' then height.import(staged, state.lookup, image, diamond.SIZE)
+  else report = terrain.import(staged, state.lookup, image, state.palette, diamond.SIZE) end
+  local remove = cleanup.prepare(core, state.ffi, v)
+  -- A layer-only undo cannot resurrect deleted objects safely.
+  state.snapshots = {}
+  local ok, err = pcall(remove)
+  if ok then
+    for field, entry in pairs(buffers) do state.ffi.copy(v.layers[field], entry.data, entry.bytes) end
+  end
+  refresh.invalidate(v, { changedLayer = true })
+  if not ok then error(err, 0) end
+  return report
+end
+
+--- Compatibility API: destructive imports invalidate layer-only snapshots.
 function M.undo(kind)
   local saved = state.snapshots[kind]
   if saved == nil then
@@ -91,12 +114,7 @@ function M.importHeight(name, options)
   local path = paths.resolve(state.folder, name)
   local image = png.readGray(state.png, path)
 
-  local v = view()
-  if options.snapshot then
-    snapshot("height", v.layers)
-  end
-  height.import(v.layers, state.lookup, image, diamond.SIZE)
-  refresh.invalidate(v, { changedLayer = true })
+  importImage('height', image)
 
   return path
 end
@@ -113,12 +131,7 @@ function M.importTerrain(name, options)
   local path = paths.resolve(state.folder, name)
   local image = png.readRGB(state.png, path)
 
-  local v = view()
-  if options.snapshot then
-    snapshot("terrain", v.layers)
-  end
-  local report = terrain.import(v.layers, state.lookup, image, state.palette, diamond.SIZE)
-  refresh.invalidate(v, { changedLayer = true })
+  local report = importImage('terrain', image)
 
   if report.unknownColours > 0 then
     log(WARNING, string.format(

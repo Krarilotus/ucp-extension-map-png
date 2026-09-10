@@ -22,19 +22,28 @@ local folderLabels = {en="Open folder", de="Ordner öffnen", fr="Ouvrir le dossi
   hu="Mappa megnyitása", tr="Klasörü aç", ch="打开文件夹", fa="باز کردن پوشه"}
 function M.folderLabel(code) return folderLabels[code or language] or folderLabels.en end
 local importWarnings = {
-  en={"May cause bugs with placed", "objects and structures."},
-  de={"Mögliche Fehler mit platzierten", "Objekten und Gebäuden."},
-  fr={"Risque de bugs avec les objets", "et bâtiments déjà placés."},
-  es={"Puede causar fallos con objetos", "y estructuras ya colocados."},
-  it={"Possibili errori con oggetti", "e strutture già posizionati."},
-  pl={"Możliwe błędy z umieszczonymi", "obiektami i budowlami."},
-  ru={"Возможны ошибки с объектами", "и постройками на карте."},
-  hu={"Hibák a már elhelyezett", "objektumokkal és épületekkel."},
-  tr={"Yerleştirilmiş nesne ve yapılarda", "hatalara neden olabilir."},
-  ch={"可能导致已放置的物体", "和建筑出现错误。"},
-  fa={"احتمال خطا در اشیاء", "و ساختمان‌های قرارگرفته."},
+  en={"Import deletes objects", "and structures."},
+  de={"Import löscht Objekte", "und Gebäude."},
+  fr={"L’import supprime les objets", "et bâtiments."},
+  es={"Importar elimina objetos", "y estructuras."},
+  it={"L’importazione elimina", "oggetti e strutture."},
+  pl={"Import usuwa obiekty", "i budowle."},
+  ru={"Импорт удаляет объекты", "и постройки."},
+  hu={"Az import törli az objektumokat", "és épületeket."},
+  tr={"İçe aktarma nesneleri", "ve yapıları siler."},
+  ch={"导入将删除物体和建筑。", ""},
+  fa={"ورود، اشیاء و ساختمان‌ها", "را حذف می‌کند."},
 }
 function M.importWarning(code) return importWarnings[code or language] or importWarnings.en end
+local operationFailures = {
+  en="Action blocked; see ucp3.log.", de="Aktion blockiert; siehe ucp3.log.",
+  fr="Action bloquée : voir ucp3.log.", es="Acción bloqueada: ver ucp3.log.",
+  it="Azione bloccata: vedi ucp3.log.", pl="Akcja zablokowana: ucp3.log.",
+  ru="Действие блокировано: ucp3.log.", hu="Művelet blokkolva: ucp3.log.",
+  tr="İşlem engellendi: ucp3.log.", ch="操作被阻止：请查看 ucp3.log。",
+  fa="عملیات مسدود شد: ucp3.log",
+}
+function M.operationFailure(code) return operationFailures[code or language] or operationFailures.en end
 local aliases = {english="en", american="en", german="de", french="fr",
   italian="it", spanish="es", polish="pl", russian="ru", hungarian="hu",
   turkish="tr", chinese="ch", persian="fa", farsi="fa", zh="ch"}

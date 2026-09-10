@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0 test.3 — 2026-09-10
+
+- Both PNG imports stage conversion before native structure/object cleanup.
+- Reuse building, tree, rock and wall/decoration teardown; preserve units.
+- Refuse occupied wall/decoration tiles before deletion; check remaining
+  footprints before committing the PNG. Invalidate unsafe layer-only undo.
+- Short localized deletion warning. Native live save/reload acceptance pending.
+
 ## 0.1.0 test.2 — 2026-09-10
 
 - Remove customization-menu controls; module activation uses the existing defaults.
