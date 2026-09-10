@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.0 test.2 — 2026-09-10
+
+- Remove customization-menu controls; module activation uses the existing defaults.
+- Add localized Open folder above the picker confirmation/back buttons.
+- Keep status text, filename and buttons in separate layout bounds.
+- Warn in both import dialogs about bugs with placed objects and structures.
+  Do not silently delete entities or claim layer snapshots are full-map backups.
+- Extreme remains optional/unimplemented for native UI. Sourcehold and this
+  module's map-layer reader recognize it, but that does not establish UI support.
+- Automatic object/structure removal is still pending; units must be preserved.
+  Test imports on disposable maps only. This build does not promise safe imports
+  into populated maps.
+
 ## 0.1.0 test prerelease — 2026-09-10
 
 - Four native-framed editor buttons for PNG height/terrain import and export.

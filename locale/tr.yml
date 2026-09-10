@@ -1,8 +1,1 @@
-{
-  "palette": "Arazi renkleri",
-  "palette_help": "Sourcehold renkleri yeniden içe aktarımda araziyi değiştirebilir.",
-  "palette_default": "Ayırt edilebilir renkler",
-  "palette_sourcehold": "Sourcehold renkleri",
-  "snapshot": "İçe aktarmadan önce yedek tut",
-  "snapshot_help": "UCP konsolundan geri yüklenir."
-}
+{}

@@ -1,8 +1,1 @@
-{
-  "palette": "地形颜色",
-  "palette_help": "使用 Sourcehold 颜色重新导入时，地形可能发生变化。",
-  "palette_default": "独立颜色",
-  "palette_sourcehold": "Sourcehold 颜色",
-  "snapshot": "导入前保留备份",
-  "snapshot_help": "通过 UCP 控制台恢复。"
-}
+{}

@@ -1,8 +1,1 @@
-{
-  "palette": "Terepszínek",
-  "palette_help": "A Sourcehold színei újbóli importáláskor megváltoztathatják a terepet.",
-  "palette_default": "Egyedi színek",
-  "palette_sourcehold": "Sourcehold-színek",
-  "snapshot": "Biztonsági másolat importálás előtt",
-  "snapshot_help": "Visszaállítás az UCP-konzolból."
-}
+{}

@@ -29,9 +29,11 @@ Do not install over your only copy of important maps.
    are independent rather than YAML aliases, keep the module selection consistent.
 4. Start `Stronghold Crusader.exe`, not Extreme. Open the test map in the editor's
    scenario or multiplayer properties screen. `mapping/` is created automatically.
+   No customization-menu settings are needed; activate the module and use it.
 5. Export height and terrain to fresh names. Select the resulting PNGs for import.
    Check the native heading, preview, list bounds, scrollbar and overwrite prompt.
    Check invasion height buttons, returning after map load, and ordinary map save.
+   Open folder should open this game's mapping folder in Windows.
 
 No Python, sourcehold installation, external conversion executable, or artwork
 download is needed on the test PC. Runtime files and icons are inside the ZIP.
@@ -46,3 +48,8 @@ still need full live acceptance; cross-PC operation has not been established.
 Coverage is editor properties (menu 17), not every map-selection/gameplay menu.
 Report game/UCP versions, game language, screenshots and relevant `ucp3.log` errors.
 See CREDITS.md for attribution and open release-license checks.
+
+**Import limitation:** automatic removal of placed objects and structures is not
+implemented yet. The import dialog warns about bugs with those placements; test
+on disposable maps. Units are not deliberately removed. This build must not be
+treated as a verified populated-map import workflow.

@@ -29,8 +29,7 @@ class TestLocales(unittest.TestCase):
     def test_options_use_the_gui_schema_and_real_module_keys(self):
         data = yaml.safe_load((ROOT / "options.yml").read_text(encoding="utf-8"))
         self.assertEqual(data["meta"]["version"], "1.0.0")
-        self.assertEqual({o["url"] for o in data["options"]},
-                         {"map-png.palette", "map-png.snapshot-before-import"})
+        self.assertEqual(data["options"], [], "Module activation must not add customization controls")
         for option in data["options"]:
             self.assertIn(option["display"], {"Choice", "Switch"})
         # Overwrite confirmation is mandatory, not a user-disableable option.

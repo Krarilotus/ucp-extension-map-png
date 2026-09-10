@@ -1,8 +1,1 @@
-{
-  "palette": "Geländefarben",
-  "palette_help": "Sourcehold-Farben können beim erneuten Import das Gelände verändern.",
-  "palette_default": "Eindeutige Farben",
-  "palette_sourcehold": "Sourcehold-Farben",
-  "snapshot": "Import-Sicherung behalten",
-  "snapshot_help": "Über die UCP-Konsole wiederherstellen."
-}
+{}

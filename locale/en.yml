@@ -1,8 +1,1 @@
-{
-  "palette": "Terrain colours",
-  "palette_help": "Sourcehold compatibility may change terrain on re-import.",
-  "palette_default": "Distinct colours",
-  "palette_sourcehold": "Sourcehold colours",
-  "snapshot": "Keep an import backup",
-  "snapshot_help": "Restore through the UCP console."
-}
+{}

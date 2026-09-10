@@ -1,8 +1,1 @@
-{
-  "palette": "Цвета местности",
-  "palette_help": "Цвета Sourcehold могут изменить местность при повторном импорте.",
-  "palette_default": "Различимые цвета",
-  "palette_sourcehold": "Цвета Sourcehold",
-  "snapshot": "Сохранять копию перед импортом",
-  "snapshot_help": "Восстановление через консоль UCP."
-}
+{}

@@ -14,6 +14,12 @@ class TestRuntimeLanguage(unittest.TestCase):
         for code, labels in self.lang.languages.items():
             self.assertEqual(len({labels[i] for i in range(2, 6)}), 4, code)
             self.assertTrue(all(labels[i] for i in range(2, 9)), code)
+            self.assertTrue(self.lang.folderLabel(code), code)
+            warning = self.lang.importWarning(code)
+            self.assertEqual(len(warning), 2, code)
+            self.assertTrue(warning[1] and warning[2], code)
+            if code != "en":
+                self.assertNotEqual(self.lang.folderLabel(code), "Open folder", code)
 
     def test_loaded_game_language_overrides_executable_translation_mismatch(self):
         self.assertEqual(self.lang.resolve("english", "German"), ("de", "loaded game text"))
