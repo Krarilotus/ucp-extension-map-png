@@ -1,8 +1,8 @@
 """The button graphics must keep the geometry the layout code assumes.
 
-Four 32px icons in a row is 128px, which is the minimap width; that is the only
-reason the row lines up. A redraw that changes the size should fail here rather
-than in the game.
+The row splits the preview's width into four slots and centres an icon in
+each. The narrowest slot is 37px (a 300x300 map draws a 150px preview), so a
+redraw wider than that would overlap -- better caught here than in the game.
 """
 
 import pathlib
@@ -32,14 +32,15 @@ class TestIcons(unittest.TestCase):
             info = inspect_icons.describe(inspect_icons.ICONS / name)
             self.assertFalse(info["has_alpha"], "%s gained transparency" % name)
 
-    def test_layout_matches_the_icon_size(self):
+    def test_icons_fit_the_narrowest_slot(self):
         lua = lua_harness.runtime()
         screens = lua_harness.load(lua, "mappng.ui.screens")
 
         self.assertEqual(screens.ICON_WIDTH, 32)
         self.assertEqual(screens.ICON_HEIGHT, 18)
-        # Four icons across must span the 128px minimap exactly.
-        self.assertEqual(screens.ICON_WIDTH * 4, 128)
+        narrowest = min(half // 2 for half in screens.PREVIEW["halfBySize"].values())
+        self.assertEqual(narrowest, 37)
+        self.assertLessEqual(screens.ICON_WIDTH, narrowest)
 
     def test_every_action_has_an_icon_and_a_label(self):
         lua = lua_harness.runtime()

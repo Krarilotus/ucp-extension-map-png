@@ -21,7 +21,23 @@
   module-local table instead; without this the game would eventually call a
   collected callback.
 
+### Changed
+- The button row is placed from facts read out of Stronghold Crusader 1.41 rather
+  than estimated. Both editor map screens are menu 17; the preview is drawn by
+  `MenuView_MapEditorProperties_DoEveryFrame` around (400 or 600, 240) in
+  menu-local coordinates, and its size follows the map size. The row follows
+  layout and map-size changes live and hides whenever the preview is not drawn.
+  See the plan, §8.
+- Menu 1002 is no longer targeted; it is the scenario event editor.
+- Corrected two earlier assumptions: the preview is 200x200 on a 400x400 map, not
+  128x128, and `MinimapViewState.x/y` is not the editor preview's position.
+- `tilemap.lua` resolves `TileMapState` through each known section table and
+  accepts one only if the full cross-check passes. Under Extreme it now finds the
+  relocated base deliberately; before, it did so by the accident of overlapping
+  tables, contrary to what the docs claimed.
+- `tools/deploy.py` keeps `ucp-config.yml`'s line endings, and
+  `tools/probe_running_game.py` checks a running game read-only.
+
 ### Known gaps
 - The file picker is not implemented; imports and exports use a default file name.
 - The button graphics have no GM slots assigned yet, so buttons draw a text label.
-- The minimap coordinates on both editor screens still need to be measured.

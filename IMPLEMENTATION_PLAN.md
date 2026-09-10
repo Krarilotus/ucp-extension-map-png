@@ -166,25 +166,11 @@ with a clear message rather than being scaled.
 
 ### M4 — Buttons under the minimap
 
-**Target screens.** From `OpenSHC/Globals/`:
-
-| Screen | Menu global | Address | `MenuViewType` |
-| --- | --- | --- | --- |
-| Editor map properties (singleplayer / scenario) | `Menu_MapEditorProperties` | `0x00B97148` | `MVT_MAP_EDITOR_PROPERTIES = 17` |
-| Edit scenario | `Menu_EditScenario` | `0x00B982D0` | `MVT_EDIT_SCENARIO = 1002` |
-
-Your two screenshots are the singleplayer ("Einzelspieler – Invasion") and multiplayer
-("Mehrspieler") variants of the editor map screen. **Discovery task before coding M4:**
-dump `Menu:fromID(id).menuItems` for both screens at runtime and log
-`menuItemType / position / itemWidth / itemHeight` for every entry. That gives us
-(a) confirmation of which menu ID each screenshot is, and (b) the exact coordinates of
-the two existing round buttons under the minimap, which we anchor to.
-
-**Layout.** Screenshot 4 shows the black strip directly beneath the minimap divided into
-four slots. Four 32-px icons in a row is 128 px, i.e. exactly the minimap width — so the
-row is `minimapX + 32*n, minimapBottomY` for `n = 0..3`, flush with the minimap's left
-and right edges, no gaps. The only value we need from the discovery task is the
-minimap's origin and height on each screen.
+**Target screen — superseded, see §8.** Both screenshots are one menu,
+`Menu_MapEditorProperties` (menu 17, `0x00B97148`); its items switch between the
+singleplayer and multiplayer layouts. Menu 1002 (`Menu_EditScenario`) is the scenario
+*event* editor and has no preview, so it is not a target. The preview position is read
+out of the game binary rather than discovered at runtime; §8 has the evidence.
 
 **Adding the items.** Same mechanism `extension-automarket` uses for its market button:
 
@@ -265,7 +251,7 @@ instance reused for all four actions (mode is a field on the module state).
 * Progress: an import/export of 80400 tiles is a few ms; no progress bar needed, but the
   result gets a one-line confirmation in the bottom-left text display and a log line.
 * Errors (bad size, unreadable PNG, unknown colours, no write permission) surface as a
-  modal message rather than only in `ucp.log`.
+  modal message rather than only in `ucp3.log`.
 * Import is refused unless a map is actually loaded in the editor — guard on the editor
   state before touching `TileMapState`.
 * Imports are not undoable by the game's editor undo. Documented; an optional
@@ -289,7 +275,7 @@ instance reused for all four actions (mode is a field on the module state).
 
 1. ~~**`ffi.load` availability** in the UCP `cffi` module~~ — confirmed, see §7.
 2. **GM slots for the button icons** — gates M5b, not M5.
-3. **Exact menu ID + coordinates** for both screens — the M4 discovery task.
+3. ~~**Exact menu ID + coordinates**~~ — resolved from the binary, see §8.
 4. **`discoverMapFiles` side effects** on the shared map list — has a cheap fallback.
 5. **Terrain import fidelity — resolved, see below.**
 6. **Map size.** Only 400×400 is handled, as in `sourcehold`. If you ever want the
@@ -347,22 +333,21 @@ nobody later "fixes" the compatibility palette and breaks compatibility.
 | M1 map ↔ PNG core | **done, tested offline** |
 | M2 PNG I/O via GDI+ | written, not yet run in the game |
 | M3 `mapping/` folder | written, not yet run in the game |
-| M4 buttons | written; needs the minimap coordinates |
+| M4 buttons | written; position read from the binary (§8), not yet run in the game |
 | M5 button graphics | icons in place; needs GM slots, text fallback active |
 | M6 file dialogs | not started; falls through to a default file name |
 | M7 feedback and safety | partial (undo snapshot, unknown-colour report) |
 | M8 tests, packaging, docs | tests and CI in place |
 
-26 offline tests pass (`python -m unittest discover -s tests`). They cover the tile
+48 offline tests pass (`python -m unittest discover -s tests`). They cover the tile
 mapping tile-for-tile against sourcehold's own formula, the flag tables against
 `logics.py`, both palettes, height and terrain round trips, and the icon geometry the
 button layout depends on.
 
 **Next three things, in order:**
 
-1. Confirm `ffi.load` works from the UCP `cffi` module. Everything in M2/M3 rests on it.
-2. Run `require("mappng.ui.screens").dump(17)` and `dump(1002)` with each editor screen
-   open, and fill in `minimap` in `mappng/ui/screens.lua`.
+1. ~~Confirm `ffi.load` works from the UCP `cffi` module~~ — confirmed, see §7.
+2. Launch plain `Stronghold Crusader.exe`, open the editor map screen, and check the row sits under the preview in both the singleplayer and multiplayer layouts. Placement is derived (§8); this confirms it.
 3. Export a vanilla map, re-import it, and confirm the map is unchanged. That validates
    M1 through M4 end to end.
 
@@ -416,3 +401,54 @@ wrapper does not list.
 
 Known cffi-lua limitations (bitfields, passing unions, structs containing unions) do not
 apply — every structure we touch is a flat array of scalars.
+
+---
+
+## 8. Where the preview is — read from the binary
+
+Earlier revisions of this plan guessed at the minimap position: first a 128-px preview
+inferred from the mockup's proportions, then `MinimapViewState.x/y` at runtime. Both
+were wrong. The answer is in `Stronghold Crusader.exe` itself, and every step below was
+read out of it with a disassembler, cross-checked against OpenSHC's names.
+
+**Menu 17 is both screens.** The `Menu::Menu` call sites (`push <items>; mov ecx,
+<menu>; call 0x004F4100`; the callee starts with the `ui` module's `51 53 8B D9`
+signature) put menu 17's items at `0x005EE898`. They match both screenshots:
+"Karte speichern" (100,420), "Szenario bearbeiten" (450,420), "Zur Karte" (450,520),
+the two round icons (240,490)/(310,490), and the multiplayer list box with its
+scrollbar. Menu 1002's items are a 20-row event list.
+
+**The preview is a MenuView frame callback, not a menu item.** `0x0042E0D0` is pushed
+as the every-frame function for menu `0x11` on MenuView `0x00B98134` (`0x0059A490`),
+and OpenSHC names it `MenuView_MapEditorProperties_DoEveryFrame`. It draws through
+`MinimapViewState::renderMinimapEditor(x, y, w, h)` (`0x004B7530`):
+
+```
+0x0042E423  cmp [0x1FE9244], 0        ; singleplayer vs multiplayer layout
+0x0042E42A  ebx = origin.x + (== 0 ? 0x190 : 0x258)    ; 400 or 600
+0x0042E440  esi = origin.y + 0xF0                        ; 240
+0x0042E446  edi = [0x1FE7C14] (0 -> 400)                 ; map size, also the "%dx%d" label
+            switch on size: 160 -> 160x160, 200 -> 200x200,
+                            300 -> 150x150, 400 -> 200x200, each centred on (ebx, esi)
+0x0042E416  whole block skipped unless [0x1FE7CBC] == -1
+```
+
+**Menu-local coordinates are the preview's frame.** Every MenuView prepare stores the
+resolution-dependent origin into both the menu (`mov [menu+4], ecx; mov [menu+8], eax`)
+and `0x00F2B3A0/A4`, and the item render loop computes `ButtonX = menu.x + item.x`,
+`ButtonY = menu.y + item.y` (`0x004F4A26`). An item at menu-local (x, y) is therefore
+drawn at the same origin the preview uses, at every resolution. `MainButtons` draws
+straight at `ButtonX/Y`, confirming nothing else is added.
+
+**The row.** Four equal slots across the preview width, icons centred in them, 8 px
+below the preview — the mockup's strip starts 3 px under it and is 28 px tall. On a
+400×400 map: x = 309/359/409/459 (singleplayer) or 509/559/609/659 (multiplayer),
+y = 348. The render function re-reads the layout every frame and moves the row when
+the map type or size changes, and hides it whenever the preview is not drawn.
+
+Your icons are exactly 64% of the mockup's 50×28 slots (32×18). They fit every map
+size (the narrowest slot is 37 px, on a 300×300 map). 50×28 artwork would fill the
+slots edge to edge on 200- and 400-size maps, if you want that look.
+
+The three globals have no OpenSHC names yet; `previewSuppressed`, `multiplayerLayout`
+and `mapSize` are ours. They are only read on Crusader 1.41, the build they came from.

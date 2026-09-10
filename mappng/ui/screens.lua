@@ -1,47 +1,50 @@
 --- mappng/ui/screens.lua
 ---
---- Which menus get the buttons, and where the row sits.
+--- Which menu gets the buttons, and where the row sits.
 ---
---- The two target screens, from `OpenSHC/src/OpenSHC/Globals/`:
+--- Both of the target screens -- the singleplayer ("Einzelspieler") and the
+--- multiplayer ("Mehrspieler") editor map screen -- are one menu:
+--- `Menu_MapEditorProperties`, menu 17, at 0x00B97148. Its items switch with
+--- the map type. (Menu 1002, `Menu_EditScenario`, is the scenario *event*
+--- editor and has no map preview.)
 ---
----   Menu_MapEditorProperties  0x00B97148  MVT_MAP_EDITOR_PROPERTIES = 17
----   Menu_EditScenario         0x00B982D0  MVT_EDIT_SCENARIO         = 1002
+--- Everything below was read out of Stronghold Crusader 1.41, not measured off
+--- screenshots:
 ---
---- Geometry, measured off the mockup: the map preview is square, and the strip
---- below it is divided into four equal segments spanning its full width. The
---- strip's height relative to the preview's is 41/296, and the icons are 32x18
---- -- so four icons across is 4*32 = 128, the preview is 128x128, and
---- 18/128 = 0.1406 matches the measured 0.1385 to within a pixel. The row
---- therefore sits flush under the preview with no gaps.
+--- * The preview is drawn by `MenuView_MapEditorProperties_DoEveryFrame`
+---   (0x0042E0D0, registered for menu 17 at 0x0059A490) through
+---   `MinimapViewState::renderMinimapEditor(x, y, w, h)` (0x004B7530).
 ---
---- Position is resolved in three steps, most trusted first:
----   1. an override set by `setMinimap` (or filled into `SCREENS` below)
----   2. `MinimapViewState` read at runtime
----   3. `FALLBACK`, so the buttons always appear somewhere rather than not at all
+--- * Its centre is the menu origin plus (400, 240) in the singleplayer layout
+---   and (600, 240) in the multiplayer layout, chosen by `[0x01FE9244]`.
 ---
---- Step 2 is a guess that still needs confirming: `renderMinimapPreview` takes
---- its screen position as arguments, so `MinimapViewState.x/y` may be the
---- in-game viewport rather than this preview's position on the editor menu.
---- That is what `probe()` and `setMinimap()` are for -- nudge it live, then
---- write the numbers into `SCREENS`.
+--- * Its size follows the map size in `[0x01FE7C14]` (0 means 400):
+---   160 -> 160x160, 200 -> 200x200, 300 -> 150x150, 400 -> 200x200.
+---
+--- * It is only drawn while `[0x01FE7CBC] == -1`. The buttons mirror that.
+---
+--- * Every MenuView prepare stores the same origin into the menu's own x/y
+---   (`mov [menu+4], ecx` / `mov [menu+8], eax` next to the writes to
+---   0x00F2B3A0 / 0x00F2B3A4), and the item render loop computes
+---   ButtonX = menu.x + item.x, ButtonY = menu.y + item.y (0x004F4A26). So an
+---   item placed at menu-local (x, y) lands in exactly the preview's frame at
+---   any resolution -- no screen-coordinate arithmetic here.
+---
+--- The global names are ours; OpenSHC has none for them yet.
+---
+--- The row is four equal slots spanning the preview's width, each icon centred
+--- in its slot, 8px below the preview. That reproduces the mockup: a strip
+--- starting 3px under the preview, 28px tall, four segments across. The
+--- icons are 32x18, which fits a slot at every map size.
 
 local M = {}
 
 M.ICON_WIDTH = 32
 M.ICON_HEIGHT = 18
 
---- OpenSHC: DAT_MinimapViewState.
-M.MINIMAP_VIEW_STATE = 0x01A31610
-M.MINIMAP_OFFSETS = {
-  width = 0x18,
-  height = 0x1C,
-  x = 0x28,
-  y = 0x2C,
-}
-
---- Used when nothing better is known, so the row is at least visible and
---- clickable and can be dragged into place with `setMinimap`.
-M.FALLBACK = { x = 336, y = 260, height = 0 }
+--- Below the preview's bottom edge: 3px to the mockup's strip, plus 5 to centre
+--- an 18px icon in its 28px height.
+M.ICON_GAP = 8
 
 --- The four actions, in the order they appear left to right.
 M.ACTIONS = {
@@ -51,19 +54,49 @@ M.ACTIONS = {
   { key = "export_textures", mode = "export", what = "terrain" },
 }
 
+--- The preview's geometry in menu-local coordinates, from 0x0042E0D0.
+M.PREVIEW = {
+  centreX = { sp = 400, mp = 600 },
+  centreY = 240,
+  halfBySize = { [160] = 80, [200] = 100, [300] = 75, [400] = 100 },
+  defaultSize = 400,
+}
+
+--- Crusader 1.41 only. Read by `currentLayout` when `setGlobalsAvailable(true)`.
+M.GLOBALS = {
+  previewSuppressed = 0x01FE7CBC, -- the preview is drawn only while this is -1
+  multiplayerLayout = 0x01FE9244, -- nonzero: multiplayer layout, centre x 600
+  mapSize = 0x01FE7C14,           -- width of the square map; 0 means 400
+}
+
 M.SCREENS = {
   {
     name = "map-editor-properties",
     menuID = 17,
-    -- Fill in once confirmed: { x = ..., y = ..., height = ... }
-    minimap = nil,
-  },
-  {
-    name = "edit-scenario",
-    menuID = 1002,
-    minimap = nil,
+    -- A manual correction on top of the derived position, set live with
+    -- setOffset / nudge. Expected to stay at zero.
+    offset = { x = 0, y = 0 },
   },
 }
+
+local state = { globalsAvailable = false }
+
+--- The globals above are only valid on the build they were read from.
+--- init.lua enables them once tilemap.lua has confirmed Crusader 1.41.
+function M.setGlobalsAvailable(available)
+  state.globalsAvailable = available and true or false
+end
+
+local function readInteger(address)
+  if not state.globalsAvailable or core == nil then
+    return nil
+  end
+  local ok, value = pcall(core.readInteger, address)
+  if ok then
+    return value
+  end
+  return nil
+end
 
 function M.screenByMenuID(menuID)
   for _, screen in ipairs(M.SCREENS) do
@@ -74,132 +107,106 @@ function M.screenByMenuID(menuID)
   return nil
 end
 
---- Reads the live minimap geometry.
----@return table|nil { x, y, width, height }
-function M.readMinimapViewState()
-  if core == nil then
-    return nil
+--- What the game is drawing right now: which layout, which map size, whether
+--- the preview is shown at all.
+---@return table { variant, size, half, centreX, centreY, hidden, source, key }
+function M.currentLayout()
+  local suppressed = readInteger(M.GLOBALS.previewSuppressed)
+  local multiplayer = readInteger(M.GLOBALS.multiplayerLayout)
+  local size = readInteger(M.GLOBALS.mapSize)
+
+  local variant = (multiplayer ~= nil and multiplayer ~= 0) and "mp" or "sp"
+  if size == nil or size == 0 then
+    size = M.PREVIEW.defaultSize
   end
+  local half = M.PREVIEW.halfBySize[size]
+    or M.PREVIEW.halfBySize[M.PREVIEW.defaultSize]
 
-  local base = M.MINIMAP_VIEW_STATE
-  local o = M.MINIMAP_OFFSETS
-
-  local ok, geometry = pcall(function()
-    return {
-      x = core.readInteger(base + o.x),
-      y = core.readInteger(base + o.y),
-      width = core.readInteger(base + o.width),
-      height = core.readInteger(base + o.height),
-    }
-  end)
-  if not ok then
-    return nil
-  end
-
-  -- Reject obvious nonsense rather than putting the buttons off-screen.
-  if geometry.x < 0 or geometry.y < 0 or geometry.x > 800 or geometry.y > 600 then
-    return nil
-  end
-
-  return geometry
-end
-
---- Resolves the row origin for a screen: override, then runtime, then fallback.
----@return table { x, y, source }
-function M.resolveMinimap(screen)
-  if screen.minimap ~= nil and screen.minimap.x ~= nil then
-    return {
-      x = screen.minimap.x,
-      y = screen.minimap.y + (screen.minimap.height or 0),
-      source = "override",
-    }
-  end
-
-  local live = M.readMinimapViewState()
-  if live ~= nil then
-    return { x = live.x, y = live.y + live.height, source = "MinimapViewState" }
-  end
+  local hidden = suppressed ~= nil and suppressed ~= -1 and suppressed ~= 0xFFFFFFFF
 
   return {
-    x = M.FALLBACK.x,
-    y = M.FALLBACK.y + M.FALLBACK.height,
-    source = "fallback",
+    variant = variant,
+    size = size,
+    half = half,
+    centreX = M.PREVIEW.centreX[variant],
+    centreY = M.PREVIEW.centreY,
+    hidden = hidden,
+    source = state.globalsAvailable and "game" or "default",
+    key = string.format("%s:%d", variant, size),
   }
 end
 
---- Position of icon `index` (1..4) for a screen.
-function M.iconPosition(screen, index)
-  local origin = M.resolveMinimap(screen)
+--- Menu-local position of icon `index` (1..4).
+---@param layout table|nil result of currentLayout(); read fresh when omitted
+function M.iconPosition(screen, index, layout)
+  layout = layout or M.currentLayout()
+
+  local slot = layout.half // 2
+  local left = layout.centreX - layout.half
+  local offset = screen.offset or { x = 0, y = 0 }
+
   return {
-    x = origin.x + ((index - 1) * M.ICON_WIDTH),
-    y = origin.y,
-    source = origin.source,
+    x = left + ((index - 1) * slot) + ((slot - M.ICON_WIDTH) // 2) + offset.x,
+    y = layout.centreY + layout.half + M.ICON_GAP + offset.y,
   }
 end
 
---- Sets the row position for a screen and moves the buttons immediately.
+--- Sets a manual correction for a screen and moves its buttons immediately.
 ---
---- For dialling the position in without restarting. From the UCP console, with
---- the editor screen open:
+--- From the UCP console, with the editor map screen open:
 ---
 ---   local s = modules['map-png']:access().screens
----   s.setMinimap(17, 336, 232, 128)   -- minimap x, y, height
+---   s.setOffset(17, 0, -2)
 ---
---- The buttons jump on the next frame. When it looks right, write the same
---- numbers into `SCREENS` above.
-function M.setMinimap(menuID, x, y, height)
+--- If a correction turns out to be needed, write it into `SCREENS` above --
+--- and treat it as a sign that one of the facts in the header is wrong.
+function M.setOffset(menuID, dx, dy)
   local screen = M.screenByMenuID(menuID)
   if screen == nil then
     error(string.format("map-png: no screen with menu id %d", menuID))
   end
 
-  screen.minimap = { x = x, y = y, height = height or 0 }
+  screen.offset = { x = dx or 0, y = dy or 0 }
 
   local buttons = require("mappng.ui.buttons")
   buttons.reposition(menuID)
 
-  log(INFO, string.format("map-png: menu %d row moved to (%d,%d)",
-    menuID, x, y + (height or 0)))
-  return screen.minimap
+  log(INFO, string.format("map-png: menu %d offset set to (%d,%d)",
+    menuID, screen.offset.x, screen.offset.y))
+  return screen.offset
 end
 
---- Nudges the current row by a delta, for fine adjustment.
+--- Adds to the current correction, for fine adjustment.
 function M.nudge(menuID, dx, dy)
   local screen = M.screenByMenuID(menuID)
   if screen == nil then
     error(string.format("map-png: no screen with menu id %d", menuID))
   end
-
-  local origin = M.resolveMinimap(screen)
-  return M.setMinimap(menuID, origin.x + (dx or 0), origin.y + (dy or 0), 0)
+  local offset = screen.offset or { x = 0, y = 0 }
+  return M.setOffset(menuID, offset.x + (dx or 0), offset.y + (dy or 0))
 end
 
---- Logs everything needed to place the row. Run with the screen open.
+--- Logs the live layout and where each icon goes. Run with the screen open.
 function M.probe(menuID)
-  local live = M.readMinimapViewState()
-  if live == nil then
-    log(INFO, "map-png: MinimapViewState holds no plausible screen position")
-  else
-    log(INFO, string.format("map-png: MinimapViewState x=%d y=%d w=%d h=%d",
-      live.x, live.y, live.width, live.height))
+  menuID = menuID or 17
+  local layout = M.currentLayout()
+  log(INFO, string.format(
+    "map-png: layout %s (from %s): preview %dx%d centred (%d,%d), %s",
+    layout.key, layout.source, layout.half * 2, layout.half * 2,
+    layout.centreX, layout.centreY, layout.hidden and "HIDDEN" or "shown"))
+
+  local screen = M.screenByMenuID(menuID)
+  if screen ~= nil then
+    for index, action in ipairs(M.ACTIONS) do
+      local p = M.iconPosition(screen, index, layout)
+      log(INFO, string.format("  %-18s menu-local (%d,%d)", action.key, p.x, p.y))
+    end
   end
 
-  if menuID ~= nil then
-    local screen = M.screenByMenuID(menuID)
-    if screen ~= nil then
-      local origin = M.resolveMinimap(screen)
-      log(INFO, string.format("map-png: menu %d row origin (%d,%d) from %s",
-        menuID, origin.x, origin.y, origin.source))
-    end
-    M.dump(menuID)
-  end
+  M.dump(menuID)
 end
 
 --- Prints every menu item of a live menu.
----
---- What to look for: the two round buttons under the minimap in the
---- screenshots. Their y gives the row's y, and the leftmost one's x lines up
---- with the preview's left edge.
 function M.dump(menuID)
   local Menu = modules.ui:access().api.ui.Menu
   local menu = Menu:fromID(menuID)
