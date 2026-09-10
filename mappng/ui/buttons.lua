@@ -2,7 +2,7 @@
 ---
 --- Creates the four menu items and attaches them to the target screen.
 ---
---- Two rules this file has to follow, both learned from a crash:
+--- Rules this file has to follow, each learned from a crash:
 ---
 --- 1. Items go in with `Menu:insertMenuItem`, never `Menu:addMenuItem`.
 ---    `Menu:fromID` points the write index at the menu's LAST_ENTRY (0x66)
@@ -20,6 +20,13 @@
 ---    parameters. The game's own standalone items with their own functions are
 ---    type 3: the lobby's minimap item (menu 20, [22]) and the scenario menu's
 ---    buttons (menu 1002, [16], [17]).
+---
+--- 3. No Lua error may leave a callback. The game calls these from its own
+---    render loop; an error unwinding through the game's C frames takes the
+---    whole process down. Every callback body runs under xpcall, and failures
+---    are logged (rate-limited) instead. The first few calls of each callback
+---    also log step markers, so a hard crash below Lua still shows in ucp3.log
+---    as the last step reached.
 ---
 --- Positions are menu-local; see mappng/ui/screens.lua for why that stays
 --- aligned with the preview at any resolution.
@@ -42,7 +49,20 @@ M.MENU_ITEM_TYPE = 0x3 -- NORMAL_ELEMENT, standalone
 M.LAST_ENTRY = 0x66
 local RENDER_FUNCTION_TYPE_SIMPLE = 0x1
 
-local state = { items = {}, callbacks = {}, layoutKey = nil }
+--- How many calls of each callback get step markers in the log.
+M.TRACED_CALLS = 3
+--- How many failures of each callback get logged.
+M.LOGGED_FAILURES = 3
+
+local traceback = (debug and debug.traceback) or function(err) return err end
+
+local state = {
+  items = {},
+  callbacks = {},
+  layoutKey = nil,
+  calls = {},    -- callback key -> number of completed calls
+  failures = {}, -- callback key -> number of failed calls
+}
 
 --- Keeps a callback alive for the lifetime of the module.
 ---
@@ -54,6 +74,28 @@ local state = { items = {}, callbacks = {}, layoutKey = nil }
 local function anchor(callback)
   state.callbacks[#state.callbacks + 1] = callback
   return callback
+end
+
+--- Logs a step marker during the first few calls of a callback.
+local function trace(key, step)
+  if (state.calls[key] or 0) < M.TRACED_CALLS then
+    log(INFO, string.format("map-png: [%s #%d] %s", key, (state.calls[key] or 0) + 1, step))
+  end
+end
+
+--- Wraps a callback body so no Lua error can unwind into the game.
+local function guarded(key, body)
+  return function(parameter)
+    local ok, err = xpcall(body, traceback, parameter)
+    state.calls[key] = (state.calls[key] or 0) + 1
+    if not ok then
+      local count = (state.failures[key] or 0) + 1
+      state.failures[key] = count
+      if count <= M.LOGGED_FAILURES then
+        log(ERROR, string.format("map-png: %s failed (%d): %s", key, count, tostring(err)))
+      end
+    end
+  end
 end
 
 --- Moves the row when the game switches layout or map size.
@@ -72,47 +114,65 @@ end
 
 --- Builds the render callback for one action.
 local function makeRender(ffi, game, action)
+  local key = "render " .. action.key
   local label = icons.LABELS[action.key]
 
-  local render = ffi.cast("void (__cdecl *)(int)", function(_)
+  local render = ffi.cast("void (__cdecl *)(int)", guarded(key, function(_)
+    trace(key, "entered")
+
     local layout = followLayout()
     if layout.hidden then
+      trace(key, "preview hidden, not drawing")
       return -- the game is not drawing the preview, so no row under it either
     end
 
-    local button = game.Rendering.ButtonState
-    local slot = icons.slot(action.key)
+    local rendering = game.Rendering
+    local button = rendering.ButtonState
+    trace(key, string.format("button at (%d,%d), layout %s",
+      tonumber(button.x), tonumber(button.y), layout.key))
 
-    game.Rendering.pDrawBufferChoiceValue[0] = 0
-    if slot ~= nil then
-      game.Rendering.renderGM(game.Rendering.textureRenderCore,
-        slot.gmID, slot.imageID, button.x, button.y)
-      button.gmPictureIndex = slot.imageID
-    else
-      -- Fallback until the GM slots are assigned: draw the label so the button
-      -- is still visible and clickable.
-      game.Rendering.renderTextToScreenConst(game.Rendering.textManager,
-        label, button.x, button.y + 4, 0, 0, 0x0E, 0, 0)
-    end
-    game.Rendering.pDrawBufferChoiceValue[0] = 1
-  end)
+    local previousSurface = rendering.pDrawBufferChoiceValue[0]
+    -- Surface 0 does not draw. The same native renderer behind renderGM uses
+    -- surface 1 for normal interface drawing and surface 2 for its backbuffer.
+    rendering.pDrawBufferChoiceValue[0] = 1
+    local ok, err = pcall(function()
+      -- Vanilla button chrome uses ButtonState, including its interaction
+      -- state. Only the picture inside is ours (no custom button skin).
+      rendering.renderButtonBackground(rendering.alphaAndButtonSurface, 0, -1)
+      local x = button.x + ((button.width - screens.ICON_WIDTH) // 2)
+      local y = button.y + ((button.height - screens.ICON_HEIGHT) // 2)
+      if icons.available() then
+        trace(key, "drawing supplied PNG artwork")
+        icons.draw(action.key, rendering, x, y)
+      else
+        trace(key, "calling renderTextToScreenConst")
+        rendering.renderTextToScreenConst(rendering.textManager,
+          label, x, y, 0, 0xB8EEFB, 0x0E, false, 0)
+      end
+    end)
+    rendering.pDrawBufferChoiceValue[0] = previousSurface
+    if not ok then error(err, 0) end
+
+    trace(key, "done")
+  end))
 
   return anchor(render)
 end
 
 --- Builds the click callback for one action.
 local function makeAction(ffi, action, onClick)
-  local handler = ffi.cast("void (__cdecl *)(int)", function(_)
+  local key = "click " .. action.key
+
+  local handler = ffi.cast("void (__cdecl *)(int)", guarded(key, function(_)
+    trace(key, "entered")
     if screens.currentLayout().hidden then
+      trace(key, "preview hidden, ignoring")
       return
     end
 
-    local ok, err = pcall(onClick, action.mode, action.what)
-    if not ok then
-      log(ERROR, string.format("map-png: %s %s failed: %s",
-        action.mode, action.what, tostring(err)))
-    end
-  end)
+    onClick(action.mode, action.what)
+    trace(key, "done")
+  end))
 
   return anchor(handler)
 end
@@ -140,10 +200,33 @@ function M.install(ffi, game, onClick)
         error("the menu's item list is not terminated where expected; not touching it")
       end
 
+      -- Build every callback and resolve its address before touching the menu.
+      --
+      -- The conversion must be ffi.tonumber. `modules.cffi` is cffi-lua on
+      -- stock Lua 5.4, where the built-in tonumber cannot read a cdata and
+      -- returns nil -- the item's function pointer then stays 0, and the game
+      -- calls address 0 the first time the menu draws. That was the second
+      -- in-game crash (fault offset 0x00000000). automarket gets away with plain
+      -- tonumber only because its callbacks live in a LuaJIT state. The ui
+      -- module itself uses `ffi.tonumber or tonumber` for the same reason.
+      local toNumber = ffi.tonumber or tonumber
+      local prepared = {}
       for index, action in ipairs(screens.ACTIONS) do
-        local position = screens.iconPosition(screen, index, layout)
         local render = makeRender(ffi, game, action)
         local handler = makeAction(ffi, action, onClick)
+        local renderAddress = toNumber(ffi.cast("unsigned long", render))
+        local handlerAddress = toNumber(ffi.cast("unsigned long", handler))
+        if not renderAddress or renderAddress == 0
+          or not handlerAddress or handlerAddress == 0 then
+          error(string.format(
+            "no function address for %s (render=%s, click=%s); not touching the menu",
+            action.key, tostring(renderAddress), tostring(handlerAddress)))
+        end
+        prepared[index] = { action = action, render = renderAddress, handler = handlerAddress }
+      end
+
+      for index, entry in ipairs(prepared) do
+        local position = screens.buttonBounds(screen, index, layout)
 
         -- Insert just before the terminator, which shifts it down one slot.
         -- Later inserts land after this one, so the recorded index stays valid.
@@ -155,20 +238,16 @@ function M.install(ffi, game, onClick)
           menuItemType = M.MENU_ITEM_TYPE,
           menuItemRenderFunctionType = RENDER_FUNCTION_TYPE_SIMPLE,
           position = { position = { x = position.x, y = position.y } },
-          itemWidth = screens.ICON_WIDTH,
-          itemHeight = screens.ICON_HEIGHT,
+          itemWidth = position.width,
+          itemHeight = position.height,
           callbackParameter = { parameter = index },
-          menuItemRenderFunction = {
-            address = tonumber(ffi.cast("unsigned long", render)),
-          },
-          menuItemActionHandler = {
-            address = tonumber(ffi.cast("unsigned long", handler)),
-          },
+          menuItemRenderFunction = { address = entry.render },
+          menuItemActionHandler = { address = entry.handler },
         })
 
         state.items[#state.items + 1] = {
           screen = screen,
-          action = action.key,
+          action = entry.action.key,
           actionIndex = index,
           menu = menu,
           itemIndex = itemIndex,
@@ -179,6 +258,21 @@ function M.install(ffi, game, onClick)
         -- Should be impossible with insertMenuItem; if it happens the game will
         -- crash the next time it walks this menu, so say so loudly.
         error("the menu's item list lost its terminator after inserting the buttons")
+      end
+
+      -- What the game will actually read, for comparing against a crash.
+      for _, entry in ipairs(state.items) do
+        if entry.screen == screen then
+          local item = menu.menuItems[entry.itemIndex]
+          log(INFO, string.format(
+            "map-png: item [%d] type=0x%X pos=(%d,%d) size=%dx%d renderType=%d render=0x%X action=0x%X",
+            entry.itemIndex, tonumber(item.menuItemType),
+            tonumber(item.position.position.x), tonumber(item.position.position.y),
+            tonumber(item.itemWidth), tonumber(item.itemHeight),
+            tonumber(item.menuItemRenderFunctionType),
+            tonumber(item.menuItemRenderFunction.address),
+            tonumber(item.menuItemActionHandler.address)))
+        end
       end
 
       local first = screens.iconPosition(screen, 1, layout)
@@ -207,10 +301,12 @@ function M.reposition(menuID, layout)
 
   for _, entry in ipairs(state.items) do
     if menuID == nil or entry.screen.menuID == menuID then
-      local position = screens.iconPosition(entry.screen, entry.actionIndex, layout)
+      local position = screens.buttonBounds(entry.screen, entry.actionIndex, layout)
       local item = entry.menu.menuItems[entry.itemIndex]
       item.position.position.x = position.x
       item.position.position.y = position.y
+      item.itemWidth = position.width
+      item.itemHeight = position.height
       moved = moved + 1
     end
   end
@@ -221,6 +317,11 @@ end
 --- The installed buttons, for inspection from the console.
 function M.installed()
   return state.items
+end
+
+--- Calls and failures per callback, for inspection from the console.
+function M.stats()
+  return { calls = state.calls, failures = state.failures }
 end
 
 return M

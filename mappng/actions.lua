@@ -46,7 +46,9 @@ local function snapshot(kind, layers)
   local fields = kind == "height" and { "defaultHeight", "height" } or { "logic1", "logic2" }
   for _, field in ipairs(fields) do
     local source = layers[field]
-    local elementSize = ffi.sizeof(source[0])
+    -- Explicit, because indexing a layer yields a plain Lua number, which
+    -- ffi.sizeof cannot size. LogicLayer is int32; the others are bytes.
+    local elementSize = (field == "logic1") and 4 or 1
     local copy = ffi.new("uint8_t[?]", diamond.TILE_COUNT * elementSize)
     ffi.copy(copy, source, diamond.TILE_COUNT * elementSize)
     saved[field] = { data = copy, bytes = diamond.TILE_COUNT * elementSize }

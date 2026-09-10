@@ -1,38 +1,24 @@
-- url: mapping-folder
-  name: PNG folder
-  description: Folder inside the game directory used for map PNGs.
-  display: Text
-  contents:
-    type: string
-    value: mapping
-
-- url: palette
-  name: Terrain palette
-  description: >
-    Colour palette used to translate terrain flags to and from PNG pixels.
-    "mappng" disambiguates plateaus and moat states so a round trip is lossless.
-    "sourcehold" reproduces the monsterfish1 palette exactly, at the cost of
-    collapsing plain earth and both plateau levels onto one colour.
+meta:
+  version: 1.0.0
+options:
+- url: map-png.palette
+  header: '{{palette}}'
+  text: '{{palette_help}}'
+  hasHeader: true
   display: Choice
   contents:
     type: string
     value: mappng
     choices:
       - name: mappng
-        text: mappng (lossless round trip)
+        text: '{{palette_default}}'
       - name: sourcehold
-        text: sourcehold (monsterfish1, compatible)
+        text: '{{palette_sourcehold}}'
 
-- url: confirm-overwrite
-  name: Confirm before overwriting a PNG
-  display: Boolean
-  contents:
-    type: boolean
-    value: true
-
-- url: snapshot-before-import
-  name: Keep one undo snapshot before an import
-  display: Boolean
+- url: map-png.snapshot-before-import
+  text: '{{snapshot}}'
+  description: '{{snapshot_help}}'
+  display: Switch
   contents:
     type: boolean
     value: true

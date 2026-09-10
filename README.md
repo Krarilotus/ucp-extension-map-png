@@ -12,8 +12,12 @@ map editor screens:
 
 PNGs live in `<game directory>/mapping/`, which the module creates on first run.
 
-See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) for the design and the current
-state of each milestone.
+The buttons use the game's native surround and interaction state, with the four
+original PNG images centred inside. Their TGX encodings draw through the native
+interface renderer without replacing any vanilla GM image slots.
+
+See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) for the original design and
+[docs/TESTING.md](docs/TESTING.md) for verification and remaining work.
 
 ## Why this exists
 
@@ -51,12 +55,17 @@ Written but not yet run in the game:
 
 * the GDI+ PNG bindings
 * locating `TileMapState` and forcing the redraw
-* the buttons themselves
+* the latest native-framed buttons and supplied artwork (offline checks pass;
+  live visual testing was deferred at the user's request)
 
 Not written yet:
 
 * the file picker (`mappng/ui/filedialog.lua` falls through to a default name)
-* the GM slots for the button graphics (the buttons draw a text label until then)
+
+The earlier menu-entry crash fixes are in the test copy: preserve the end marker,
+convert callback pointers using `ffi.tonumber`, and contain Lua callback errors.
+The previous drawing-surface value of zero rendered nothing; the new buttons use
+surface 1 and restore the caller's surface afterwards.
 
 ## Palettes
 
@@ -71,7 +80,8 @@ Two are available, selected in the UCP GUI:
 ## Development
 
 ```console
-python -m pip install lupa==2.6
+python -m pip install lupa==2.6 Pillow PyYAML
+python tools/build_icons.py
 python -m unittest discover -s tests -v
 ```
 
