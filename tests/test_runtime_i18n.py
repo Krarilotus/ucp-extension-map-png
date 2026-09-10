@@ -15,9 +15,10 @@ class TestRuntimeLanguage(unittest.TestCase):
             self.assertEqual(len({labels[i] for i in range(2, 6)}), 4, code)
             self.assertTrue(all(labels[i] for i in range(2, 9)), code)
             self.assertTrue(self.lang.folderLabel(code), code)
+            self.assertTrue(self.lang.operationFailure(code), code)
             warning = self.lang.importWarning(code)
             self.assertEqual(len(warning), 2, code)
-            self.assertTrue(warning[1] and warning[2], code)
+            self.assertTrue(warning[1], code)
             if code != "en":
                 self.assertNotEqual(self.lang.folderLabel(code), "Open folder", code)
 

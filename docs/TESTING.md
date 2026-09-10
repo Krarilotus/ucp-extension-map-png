@@ -39,15 +39,13 @@ Inspect `ucp3.log` for callback failures as well as initialization messages.
 
 Follow [the full picker checklist](PICKER_TEST.md). Start with export, which
 does not change the map. Choose a fresh name for each layer and inspect the PNGs.
-Then import those exports and verify the map remains unchanged using the default
-lossless palette. Cancelled or invalid imports must not change map layers.
+Then import those exports and verify the selected layer matches using the default
+lossless palette. Objects/structures are removed; units remain. Cancelled or invalid
+imports must not change map layers or remove objects.
 
-If snapshot-before-import is enabled, one previous snapshot per layer is exposed:
-
-```lua
-modules['map-png']:access().actions.undo("height")
-modules['map-png']:access().actions.undo("terrain")
-```
+Layer-only undo is unavailable after destructive cleanup. Follow the native
+cleanup checks in [IMPORT_CLEANUP.md](IMPORT_CLEANUP.md), including occupied-wall
+preflight refusal and save/reload checks with multiple types of placed objects.
 
 Finally test the game's ordinary map save/load, including keyboard input and
 returning to the properties menu. Check language labels and filename input in

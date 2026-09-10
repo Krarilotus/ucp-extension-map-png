@@ -132,7 +132,7 @@ local function confirm()
     end
     -- Keep the selection and filename available when conversion fails.
     local ok, accepted = pcall(state.done, name)
-    if not ok or accepted == false then state.status = "invalid_png"; return end
+    if not ok or accepted == false then state.status = "operation_failed"; return end
     finish(nil, false)
   end
 end
@@ -274,6 +274,9 @@ function M.initialize(ffi, game, manager, pngBound)
         text(paths.toGameText(i18n.message(state.status == "invalid_name" and "name" or "select")), x + 28, y + layout.statusY)
       end
       if state.status == "invalid_png" then text(paths.toGameText(i18n.message("invalid")), x + 28, y + layout.statusY) end
+      if state.status == "operation_failed" then
+        boundedText(paths.toGameText(i18n.operationFailure()), x + 28, y + layout.statusY, 264)
+      end
     end)
     if state.input[0].returned ~= 0 then
       state.input[0].returned = 0

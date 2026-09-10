@@ -6,7 +6,9 @@ height, import terrain, export terrain.
 PNGs are 400×400. Choose files and export names in `<game>/mapping/`, created
 automatically. Existing exports require confirmation before replacement.
 Activate the module to use it; there are no customization-menu controls. The
-default terrain palette is lossless and pre-import snapshots are enabled.
+default terrain palette is lossless. Imports remove placed objects/structures
+using native teardown; layer-only undo is unavailable. Live acceptance of this
+cleanup is pending; see docs/IMPORT_CLEANUP.md.
 The picker's Open folder button opens this mapping directory in Windows.
 Import previews show the selected PNG; export initially previews the converted
 map layer. The module uses Windows GDI+ and in-process map access; no Python
