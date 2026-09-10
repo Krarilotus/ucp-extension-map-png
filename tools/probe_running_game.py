@@ -6,8 +6,8 @@ Run it with the game open on the map editor screen:
 
 It does what `mappng/map/tilemap.lua` does before its first write -- walk the
 map-section table, derive the TileMapState base, cross-check it against every
-layer offset -- and additionally reads MinimapViewState, so the button row's
-position can be checked without the UCP console.
+layer offset -- and additionally reads the editor layout globals, so the
+button row's position can be checked without the UCP console.
 
 Nothing is written. The process is opened with VM_READ only.
 """
@@ -43,7 +43,27 @@ SECTIONS = {
 EXPECTED_BASE = 0x01A93208  # OpenSHC DAT_TileMapState, Crusader 1.41
 
 MINIMAP_VIEW_STATE = 0x01A31610  # OpenSHC DAT_MinimapViewState
-MINIMAP_OFFSETS = {"width": 0x18, "height": 0x1C, "x": 0x28, "y": 0x2C}
+
+# Same as mappng/ui/screens.lua: read out of MenuView_MapEditorProperties_DoEveryFrame.
+EDITOR_GLOBALS = {"previewSuppressed": 0x01FE7CBC, "multiplayerLayout": 0x01FE9244,
+                  "mapSize": 0x01FE7C14}
+MENU_ORIGIN = {"x": 0x00F2B3A0, "y": 0x00F2B3A4}
+HALF_BY_SIZE = {160: 80, 200: 100, 300: 75, 400: 100}
+
+
+def editor_row(values):
+    """Menu-local icon positions, the same arithmetic as screens.iconPosition."""
+    variant = "mp" if values["multiplayerLayout"] else "sp"
+    size = values["mapSize"] or 400
+    half = HALF_BY_SIZE.get(size, 100)
+    centre_x, centre_y, slot = (600 if variant == "mp" else 400), 240, half // 2
+    return {
+        "layout": "%s:%d" % (variant, size),
+        "previewShown": values["previewSuppressed"] in (-1, 0xFFFFFFFF),
+        "icons": [(centre_x - half + i * slot + (slot - 32) // 2, centre_y + half + 8)
+                  for i in range(4)],
+    }
+
 
 PROCESS_VM_READ = 0x0010
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
@@ -150,17 +170,17 @@ def main():
 
         if exe == SUPPORTED and base is not None and not problems:
             report["mapOrientation"] = integer(base + OFFSETS["mapOrientation"])
-            report["minimapViewState"] = {
-                name: integer(MINIMAP_VIEW_STATE + offset)
-                for name, offset in MINIMAP_OFFSETS.items()
-            }
+            editor = {name: integer(address) for name, address in EDITOR_GLOBALS.items()}
+            report["editorGlobals"] = editor
+            report["menuOrigin"] = {k: integer(a) for k, a in MENU_ORIGIN.items()}
+            report["row"] = editor_row(editor)
     finally:
         kernel32.CloseHandle(handle)
 
     print(json.dumps(report, indent=2))
 
     if not report["supported"]:
-        print("\nThis is %s. map-png targets Crusader 1.41 only; launch "
+        print("\nThis is %s. the button layout was read from Crusader 1.41; launch "
               "'Stronghold Crusader.exe' for the test." % exe, file=sys.stderr)
         return 1
     if report["problems"]:
@@ -168,10 +188,11 @@ def main():
               file=sys.stderr)
         return 1
 
-    minimap = report["minimapViewState"]
-    print("\nIf the editor map screen is open, try in the UCP console:")
-    print("  modules['map-png']:access().screens.setMinimap(17, %d, %d, %d)"
-          % (minimap["x"], minimap["y"], minimap["height"]))
+    row, origin = report["row"], report["menuOrigin"]
+    print("\nWith the editor map screen open, the icons should be at screen")
+    print("positions %s (menu-local plus origin %d,%d)."
+          % ([(x + origin["x"], y + origin["y"]) for x, y in row["icons"]],
+             origin["x"], origin["y"]))
     return 0
 
 

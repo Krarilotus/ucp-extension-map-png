@@ -16,44 +16,49 @@ Dependencies must already be present in `ucp/modules/`: `cffi`, `luajit`, `ui`,
 ## 2. Launch and look at the log
 
 Launch **`Stronghold Crusader.exe`, not `Stronghold_Crusader_Extreme.exe`**. The
-addresses are for Crusader 1.41, the same version `sourcehold` supports. Under
-Extreme the buttons still appear, but an import or export refuses to run: the
-section-table cross-check in `tilemap.lua` fails before anything is written.
+button layout was read out of Crusader 1.41, the same version `sourcehold`
+supports. Extreme has the same map-layer layout, and `tilemap.lua` finds it through
+Extreme's own section table, but the row's layout globals are only known for 1.41:
+under Extreme the row sits where a 400x400 singleplayer map puts it and does not
+follow the map.
 
 Open the map editor and go to the map screen. In `ucp3.log`, next to the exe, you
 want:
 
 ```
 map-png: using <game>\mapping
-map-png: added 4 buttons to menu 17 (map-editor-properties) at (x,y), position from ...
+map-png: added 4 buttons to menu 17 (map-editor-properties), first at menu-local (309,348), layout sp:400 from game
 ```
 
-`position from` tells you which tier resolved the row:
+`layout sp:400 from game` means the row was placed from the game's own layout
+values. `from default` means the build was not recognised and the row assumes a
+400x400 singleplayer map — expect it to be off on anything else.
 
-| source | meaning |
-| --- | --- |
-| `override` | the numbers written into `SCREENS` in `mappng/ui/screens.lua` |
-| `MinimapViewState` | read live from the game at `0x01A31610` |
-| `fallback` | nothing was known; the row is parked somewhere visible |
+## 3. Check the row sits under the preview
 
-## 3. Put the row in the right place
+The position is read out of the game binary, not guessed, so it should be right the
+first time. What to check:
 
-The buttons can be moved with the screen open — no restart per guess. From the
-UCP console:
+* **Singleplayer map:** the four icons sit in a row directly under the preview,
+  spanning its width.
+* **Multiplayer map:** the preview is further right, and the row moves with it.
+* **Smaller map (e.g. 160x160):** the preview shrinks, and the row follows it up.
+
+The external probe prints where each icon should be, in screen coordinates, while
+the game runs:
+
+```console
+python tools/probe_running_game.py
+```
+
+If the row is off by a few pixels, correct it live and report the numbers — a
+correction means one of the facts in `mappng/ui/screens.lua` is wrong:
 
 ```lua
 local s = modules['map-png']:access().screens
-s.probe(17)                      -- log MinimapViewState + every menu item
-s.setMinimap(17, 336, 232, 128)  -- minimap x, y, height
-s.nudge(17, -4, 0)               -- fine adjustment
+s.probe(17)            -- log the live layout and every icon position
+s.nudge(17, 0, -2)     -- move the row by (dx, dy)
 ```
-
-`probe` dumps the menu's items; the two existing round buttons under the minimap
-are the anchor. Their y is the row's y, and the leftmost one's x lines up with the
-preview's left edge.
-
-When it looks right, write the numbers into `SCREENS` in `mappng/ui/screens.lua`
-and redeploy. Then repeat for menu 1002.
 
 ## 4. Test the conversion
 
@@ -82,5 +87,5 @@ modules['map-png']:access().actions.undo("terrain")
 
 * The buttons draw a **text label**, not your artwork — the GM slots for the icons
   are not assigned yet (`icons.SLOTS` is nil).
-* The row may be in the wrong place — that is what step 3 is for.
+* If the row is off, step 3 says how to measure and correct it.
 * Both dialogs are stubbed, so file names are not selectable yet.

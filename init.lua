@@ -1,7 +1,7 @@
 --- map-png
 ---
 --- Import and export the live Stronghold Crusader map as PNG files, from four
---- buttons under the minimap on the map editor screens.
+--- buttons under the minimap on the map editor screen.
 ---
 --- This replaces shelling out to `sourcehold memory map get/set`: that tool has
 --- to attach to the game from outside with pymem, which is why it needs Python,
@@ -12,6 +12,7 @@
 local gdiplus = require("mappng.png.gdiplus")
 local paths = require("mappng.paths")
 local actions = require("mappng.actions")
+local tilemap = require("mappng.map.tilemap")
 local screens = require("mappng.ui.screens")
 local icons = require("mappng.ui.icons")
 local buttons = require("mappng.ui.buttons")
@@ -20,6 +21,9 @@ local filedialog = require("mappng.ui.filedialog")
 local mappng = {}
 
 local state = {}
+
+--- The build the button layout globals were read from.
+local LAYOUT_BUILD = "Crusader 1.41"
 
 --- Reads the current map name, for the default file name in the save dialog.
 --- TODO(discovery): read it from MapPropertiesState instead of guessing.
@@ -67,13 +71,29 @@ function mappng:enable(config)
   log(INFO, string.format("map-png: using %s", actions.folder()))
 
   hooks.registerHookCallback("afterInit", function()
+    -- The section table is static data, so this is valid from process start.
+    local ok, base, build = pcall(tilemap.resolveBase, core)
+    if ok then
+      log(INFO, string.format("map-png: %s, TileMapState at 0x%X", build, base))
+    else
+      log(WARNING, string.format("map-png: map layers not found: %s", tostring(base)))
+    end
+
+    -- The preview layout globals were read out of one specific build. On any
+    -- other, place the row for a 400x400 singleplayer map and let setOffset fix it.
+    local layoutKnown = ok and build == LAYOUT_BUILD
+    screens.setGlobalsAvailable(layoutKnown)
+    if not layoutKnown then
+      log(WARNING, "map-png: button layout globals are only known for "
+        .. LAYOUT_BUILD .. "; the row will not follow the map size or layout")
+    end
+
     icons.load()
 
     local game = modules.ui:access().game
     local added = buttons.install(ffi, game, onClick)
     if added == 0 then
-      log(WARNING, "map-png: no buttons were added; "
-        .. "the minimap positions in mappng/ui/screens.lua are probably still empty")
+      log(WARNING, "map-png: no buttons were added; see the errors above")
     end
   end)
 end
@@ -85,7 +105,7 @@ function mappng:disable()
 end
 
 --- Exposed so the operations can be driven from the UCP console before the UI
---- is finished, and for the screen discovery task.
+--- is finished, and for checking the button placement.
 function mappng:access()
   return {
     actions = actions,
