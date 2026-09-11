@@ -18,9 +18,10 @@ not native-language proofreading or visual font acceptance.
 - Test empty-map entry/return/import and populated-map cleanup, unit preservation,
   save/reload, both editor layouts and the swapped picker buttons. Cross-PC
   installation/activation and native font rendering also require acceptance.
-- Record artwork redistribution permission and the module's release license;
+- Record the module's release license;
   retain sourcehold GPL notice and review its conflicting MIT package metadata.
-  Authorship credit is not a grant of redistribution permission.
+  Artwork permission for this release was confirmed by Krarilotus on 2026-09-11;
+  see CREDITS.md. It is no longer an open release gate.
 - Store maintainers must review, build/sign and merge the draft 3.0.7 PR.
 - Upstream UI PR gynt/ucp-extension-ui#6 remains open. The store currently pins
   the existing UI 1.0.1 fix fork. Switch back to gynt's equivalent after release;
