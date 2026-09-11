@@ -4,9 +4,11 @@ Target: normal **Stronghold Crusader 1.41**, with **UCP 3.0.7 Developer**.
 This is an unsigned test module, not a complete game or framework installer.
 Do not install over your only copy of important maps.
 
-1. Close the game. Place `map-png-0.1.0.zip` directly in `<game>/ucp/modules/`.
+1. Close the game. Place `map-png-0.1.1.zip` directly in `<game>/ucp/modules/`.
    Do not extract it and do not put the ZIP inside another map-png directory.
    Move aside any older unpacked `map-png-0.1.0` folder or same-version ZIP first.
+   Keep the exact filename: suffixes such as ` (2)` are invalid in UCP module
+   names. Move duplicates outside `ucp/modules/`, not into a backup subfolder there.
 2. Install the dependencies: `ui` 1.0.1, `cffi` 1.0.0 and `luajit` 1.0.0.
    UI test build: https://github.com/Krarilotus/ucp-extension-ui/releases/tag/test-d3a807cfee70
    Its own dependencies must also be satisfied. The UCP launcher normally handles
@@ -22,7 +24,7 @@ Do not install over your only copy of important maps.
 
    # In load-order, AFTER luajit, cffi and ui:
    - extension: map-png
-     version: 0.1.0
+     version: 0.1.1
    ```
 
    Preserve the file's existing `config-sparse`/`config-full` arrangement. If they
