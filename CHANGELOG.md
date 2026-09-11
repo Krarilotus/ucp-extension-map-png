@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2 — 2026-09-11
+
+- Add approved GPLv3 code license, corresponding-source information and retained
+  third-party notices. Record gynt's sourcehold license clarification.
+- Record maintainer acceptance of prior testing; no runtime changes from 0.1.1.
+
 ## 0.1.1 test prerelease — 2026-09-11
 
 - Put Import/Export first, Open folder second, and Back last in all four PNG
