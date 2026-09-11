@@ -1,6 +1,6 @@
 name: map-png
 display-name: Map PNG
-version: 0.1.0
+version: 0.1.1
 author: Krarilotus
 type: module
 dependencies:
@@ -10,3 +10,11 @@ dependencies:
   luajit: "^1.0.0"
 meta:
   version: 1.0.0
+tags:
+- maps
+- tools
+capabilities:
+  files: true
+  code: true
+  configuration: false
+  options: false
