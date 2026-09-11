@@ -17,7 +17,9 @@ research remains with their authors; this module does not claim their work.
   These are system components, not bundled software.
 - **Firefly Studios** — Stronghold Crusader and its original interface artwork,
   fonts, menu implementation and game assets. The extension invokes the installed
-  game's routines; it does not distribute those game assets.
+  game's routines; it does not distribute standalone game assets. The store's
+  documentation preview is an unmodified user-supplied gameplay screenshot
+  showing that original interface, not a replacement game asset.
 
 ## Adapted code, data and research references
 

@@ -16,5 +16,6 @@
     <file src="docs/NATIVE_UI.md" target="docs" />
     <file src="docs/PORTABLE_TEST.md" target="docs" />
     <file src="docs/IMPORT_CLEANUP.md" target="docs" />
+    <file src="docs/RELEASE_READINESS.md" target="docs" />
   </files>
 </module>

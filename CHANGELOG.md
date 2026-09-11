@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.1 test prerelease — 2026-09-11
+
+- Put Import/Export first, Open folder second, and Back last in all four PNG
+  submenus. Shared layout and native control order remain consistent.
+- Package filenames now follow the module version in definition.yml.
+- Nine concise localized store descriptions include the destructive import
+  warning and one editor preview with localized alternative text.
+
 ## 0.1.0 test.4 — 2026-09-10
 
 - Fix imports after entering map view on an empty map: the native building scan

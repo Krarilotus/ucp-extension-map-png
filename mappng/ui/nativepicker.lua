@@ -195,11 +195,11 @@ function M.initialize(ffi, game, manager, pngBound)
       boundedText(value, b.x + 8, b.y + 6, w - 16)
     end, click)
   end
-  button(28, layout.folderY, 264, function() return paths.toGameText(i18n.folderLabel()) end,
-    function() paths.openFolder(state.model.folder) end)
   button(28, layout.confirmY, 264, function()
     return state.status == "overwrite" and nativeText(22) or actionText()
   end, confirm)
+  button(28, layout.folderY, 264, function() return paths.toGameText(i18n.folderLabel()) end,
+    function() paths.openFolder(state.model.folder) end)
   button(28, layout.backY, 264, function() return nativeText(17) end, function() finish(nil) end)
   item(layout.listX, layout.listY, layout.listWidth, layout.rowHeight, function(b)
     state.rowBackground(game.Rendering.pencilRenderCore, 0, 1, 0)

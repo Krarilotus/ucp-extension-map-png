@@ -3,6 +3,7 @@ from pathlib import Path
 import hashlib
 import zipfile
 import xml.etree.ElementTree as ET
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -38,4 +39,5 @@ def package(destination):
 
 
 if __name__ == "__main__":
-    package(ROOT / "dist" / "map-png-0.1.0.zip")
+    definition = yaml.safe_load((ROOT / 'definition.yml').read_text(encoding='utf-8'))
+    package(ROOT / "dist" / f"{definition['name']}-{definition['version']}.zip")
