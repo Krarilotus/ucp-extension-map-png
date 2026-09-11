@@ -53,9 +53,12 @@ confirmed by Krarilotus). The creator-v2 PNGs were supplied by Krarilotus in
 
 Contact **Monsterfish_** for an easy-to-edit offline Photoshop template.
 
-The artwork attribution is confirmed; its redistribution license has not yet
-been recorded. **Stable store release remains gated on confirming redistribution
-terms**, as well as resolving the sourcehold license-metadata
-conflict and recording the module's release license. Credits alone do not resolve
-those release checks. The user-requested test prerelease is not a release-ready,
-signed store build; these checks remain open in its draft store PR.
+On 2026-09-11, Krarilotus confirmed that Monsterfish_ is involved and that use of
+the supplied artwork in this extension's release is approved. This records the
+maintainer's confirmation of release permission, not a blanket license for other
+uses or a new license for Firefly's original assets. The artwork-permission gate
+for this release is resolved; attribution and the template contact remain.
+
+The sourcehold license-metadata review and the module's release-license record
+remain separate open checks. The test prerelease is not a signed stable store
+build; live acceptance and maintainer release approval remain pending.
