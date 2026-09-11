@@ -13,8 +13,3 @@ meta:
 tags:
 - maps
 - tools
-capabilities:
-  files: true
-  code: true
-  configuration: false
-  options: false
