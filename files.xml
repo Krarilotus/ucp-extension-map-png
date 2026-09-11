@@ -10,6 +10,8 @@
     <file src="README.md" />
     <file src="CHANGELOG.md" />
     <file src="CREDITS.md" />
+    <file src="LICENSE" />
+    <file src="COPYING.md" />
     <file src="licenses" />
     <file src="docs/TESTING.md" target="docs" />
     <file src="docs/PICKER_TEST.md" target="docs" />

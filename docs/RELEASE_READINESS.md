@@ -1,4 +1,4 @@
-# 0.1.1 release handoff
+# 0.1.2 release handoff
 
 Completed: unique module/package version; action/folder/back order; nine concise
 store descriptions with localized warning and image alt text; one real editor
@@ -10,19 +10,17 @@ fits the description pane without added HTML or duplicated instructions.
 Local tests cover all nine store locales and eleven runtime label sets, but are
 not native-language proofreading or visual font acceptance.
 
-## Remaining gates
+## Release status
 
-- Live testing: dedicated normal-game 0.1.1 installation is prepared. Startup
-  stops at UCP's developer-mode security consent dialog; the user must handle
-  that prompt. No live acceptance is claimed for this build.
-- Test empty-map entry/return/import and populated-map cleanup, unit preservation,
-  save/reload, both editor layouts and the swapped picker buttons. Cross-PC
-  installation/activation and native font rendering also require acceptance.
-- Record the module's release license;
-  retain sourcehold GPL notice and review its conflicting MIT package metadata.
+- Krarilotus accepted existing testing and waived another live run solely for
+  the button-order change. No additional automated live test is claimed.
+  Cross-PC/font and comprehensive cleanup save/reload coverage are not independently
+  established; retain those limitations when describing validation.
+- GPLv3 approved by Krarilotus after relaying gynt's clarification; LICENSE and
+  COPYING.md record it and retain the sourcehold GPL notice.
   Artwork permission for this release was confirmed by Krarilotus on 2026-09-11;
   see CREDITS.md. It is no longer an open release gate.
-- Store maintainers must review, build/sign and merge the draft 3.0.7 PR.
+- The store 3.0.7 merge triggers build/sign/release; verify published assets.
 - Upstream UI PR gynt/ucp-extension-ui#6 remains open. The store currently pins
   the existing UI 1.0.1 fix fork. Switch back to gynt's equivalent after release;
   a maintainer may approve the temporary fork independently.

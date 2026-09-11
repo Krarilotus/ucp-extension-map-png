@@ -59,6 +59,6 @@ maintainer's confirmation of release permission, not a blanket license for other
 uses or a new license for Firefly's original assets. The artwork-permission gate
 for this release is resolved; attribution and the template contact remain.
 
-The sourcehold license-metadata review and the module's release-license record
-remain separate open checks. The test prerelease is not a signed stable store
-build; live acceptance and maintainer release approval remain pending.
+On 2026-09-11, Krarilotus relayed gynt's clarification that sourcehold is GPLv3
+and approved GPLv3 for Map PNG's code. See LICENSE and COPYING.md. The conflicting
+MIT package classifier is not relied upon. Both licensing gates are resolved.
