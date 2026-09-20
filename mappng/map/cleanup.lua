@@ -22,7 +22,7 @@ function M.prepare(core, ffi, view, proposed)
   local native=bindings.resolve()
   assert(view.base==native.base, 'map-png: inconsistent native map layout')
   local a=objects.open(core,ffi,view,native)
-  local plan=planner.build(view.layers,proposed,a.objects,a.tileCount,a.neighbours)
+  local plan=planner.build(view.layers,proposed,a.objects,a.tileCount,a.neighbours,a.placement)
   local calls={}
   for name,address in pairs(native.functions) do
     calls[name]=ffi.cast(name=='wall' and 'void (__thiscall *)(void *, int, int)'

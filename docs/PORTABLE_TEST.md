@@ -5,7 +5,7 @@ Extreme discovery also passes offline; its live behavior is still unverified.
 This is an unsigned test module, not a complete game or framework installer.
 Do not install over your only copy of important maps.
 
-1. Close the game. Place `map-png-0.2.0.zip` directly in `<game>/ucp/modules/`.
+1. Close the game. Place `map-png-0.2.1.zip` directly in `<game>/ucp/modules/`.
    Do not extract it and do not put the ZIP inside another map-png directory.
    Move aside any older unpacked `map-png-0.1.0` folder or same-version ZIP first.
    Keep the exact filename: suffixes such as ` (2)` are invalid in UCP module
@@ -25,7 +25,7 @@ Do not install over your only copy of important maps.
 
    # In load-order, AFTER luajit, cffi and ui:
    - extension: map-png
-     version: 0.2.0
+     version: 0.2.1
    ```
 
    Preserve the file's existing `config-sparse`/`config-full` arrangement. If they
@@ -50,7 +50,7 @@ download is needed on the test PC. Runtime files and icons are inside the ZIP.
 signature checks or fabricate a `.sig`. Wait for maintainer review and the store's
 signing pipeline for ordinary secure-build installation.
 
-**Verification status:** 0.2.0 has automated model and binary-discovery tests,
+**Verification status:** 0.2.1 has automated model and binary-discovery tests,
 but no completed live acceptance. The computer-use connection was unavailable.
 Cross-PC operation and populated-map cleanup have not been established.
 Coverage is editor properties (menu 17), not every map-selection/gameplay menu.

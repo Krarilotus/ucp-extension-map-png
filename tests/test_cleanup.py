@@ -21,6 +21,7 @@ class Cleanup(unittest.TestCase):
           adapter.identity=function(kind,id) return 100+id end
           adapter.record=function(kind,id) return 1000+id*1000 end
           adapter.neighbours=function() return {} end
+          adapter.placement=function() return {limit=200,difference=0,rocky=0,marsh=0,moat=0} end
           adapter.wall=function() return false end
           package.loaded['mappng.map.objects']={WALL_MASK=0x00410B00,open=function() return adapter end}
           package.loaded['mappng.native']={resolve=function()
@@ -49,7 +50,7 @@ class Cleanup(unittest.TestCase):
 
     def test_only_conflicting_building_removed_and_rubble_cleared(self):
         self.lua.execute("""
-          proposed.defaultHeight[1]=1
+          proposed.logic1[1]=1
           adapter.misc[1]=0x6000; adapter.was[1]=8; adapter.damage[1]=9
           local remove=prepare(); assert(calls==0); remove()
           assert(calls==1 and not active['building:1'] and active['building:2'])
@@ -68,13 +69,13 @@ class Cleanup(unittest.TestCase):
 
     def test_siege_unit_conflict_aborts_before_mutation(self):
         self.lua.execute("""
-          adapter.objects['building:1'].type=80; proposed.defaultHeight[1]=1
+          adapter.objects['building:1'].type=80; proposed.logic1[1]=1
           assert(not pcall(prepare)); assert(calls==0)
         """)
 
     def test_native_failure_restores_rubble_switch(self):
         self.lua.execute("""
-          proposed.defaultHeight[1]=1; nativeFailure=true
+          proposed.logic1[1]=1; nativeFailure=true
           local remove=prepare(); assert(not pcall(remove)); assert(noRubble==7)
         """)
 
@@ -82,7 +83,7 @@ class Cleanup(unittest.TestCase):
         for flag in ('changeUnit','leaveFootprint','changeRetained'):
             self.setUp()
             self.lua.execute(f"""
-              proposed.defaultHeight[1]=1; {flag}=true
+              proposed.logic1[1]=1; {flag}=true
               local remove=prepare(); assert(not pcall(remove))
             """)
 

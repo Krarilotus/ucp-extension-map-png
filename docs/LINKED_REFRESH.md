@@ -1,6 +1,6 @@
-# Linked refresh (0.2.0)
+# Linked refresh (introduced in 0.2.0; patched in 0.2.1)
 
-Status: 0.2.0 release candidate, integration implemented; live acceptance pending.
+Status: 0.2.1 test candidate, integration implemented; live acceptance pending.
 The refresh control, sidecar lifecycle and selective native adapter are wired to
 the shared import transaction. Unit tests cover transaction failures, link state,
 conflicts and teardown; executable-backed tests run UCP's real AOBExtract against
@@ -41,9 +41,15 @@ refresh, abort that refresh rather than silently importing only the other layer.
 
 Unchanged footprints survive. Cosmetic texture changes underneath retained
 objects are masked, including their runtime occupancy flags and raised height.
-Height changes and changes to structural terrain (water, marsh, rocks, deposits,
-moats/pitch) conflict. Farms also depend on fertile ground. This is deliberately
-a conservative policy, not a claim to reproduce every native placement rule.
+Height changes alone no longer cause deletion. Read building height limits,
+foundation tolerance and rocky/marsh/moat permissions from the native tables.
+Only newly introduced blocked terrain, lost required resources/fertile ground,
+exceeded height rules or new/worsened cliff edges cause conflict. The final
+masked ground is checked against eight neighbours, including diagonals; expand
+connected deletions and repeat until no new exposed-edge conflicts remain.
+Existing unsuitable terrain is not by itself a reason to delete an object.
+This remains a conservative retention policy, not a complete construction
+validator: farm-field, landscape and edge rules still require live acceptance.
 Unknown/incomplete footprints must fail before deletion, never trigger a
 whole-map cleanup fallback. Units are not deleted.
 
@@ -70,5 +76,5 @@ normal 1.41 research references, not the runtime discovery mechanism.
 Before a release: prove load/new/save identity boundaries; test connected keep
 parts, farms, rocks, trees, walls occupied by units, and rubble; test missing or
 invalid second PNG; check both SP and MP geometry and all localized strings.
-Publish 0.2.0 through a new Store PR, leaving 0.1.2 untouched. Until these gates
+Publish 0.2.1 through the existing draft Store PR, leaving 0.1.2 untouched. Until these gates
 pass, any PR/build must be explicitly marked draft/test, not release-ready.
