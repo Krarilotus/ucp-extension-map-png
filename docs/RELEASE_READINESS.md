@@ -1,9 +1,12 @@
 # 0.2.0 release candidate
 
 Refresh, per-map sidecar links, selective cleanup and updated localized warnings
-are implemented. 139 automated tests pass at the initial integration checkpoint;
+are implemented. 154 automated tests pass after the UCP-contract refactor;
 native AoB discovery is checked with UCP's real helper against normal and Extreme
-executables. The existing UI still requires its UCP 1.0.1 dependency.
+executables, including exact detour instruction spans. Fixed-address map/picker
+bindings and the executable-version allowlist were removed; layout invariants
+still fail closed. Lifecycle and complete-footprint adapter tests are included.
+The existing UI 1.0.1 dependency is unchanged; no new UI download is needed.
 
 Live acceptance remains open: computer-use's native pipe failed twice on
 2026-09-20. Do not merge the Store PR or call this build live-tested until map

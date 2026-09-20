@@ -28,7 +28,7 @@ function M.prepare(core, ffi, view, proposed)
     calls[name]=ffi.cast(name=='wall' and 'void (__thiscall *)(void *, int, int)'
       or 'void (__thiscall *)(void *, int)',address)
   end
-  local states={}
+  local states, retainedTiles={},{}
   local function unitState(id) return core.readSmallInteger(native.units+0x614+id*0x490+0x8C) end
   function a.preflight(selection)
     for key in pairs(selection.remove) do
@@ -45,6 +45,9 @@ function M.prepare(core, ffi, view, proposed)
       end
     end
     for id=0,native.unitCapacity-1 do states[id]=unitState(id) end
+    for tile in pairs(selection.mask) do
+      retainedTiles[tile]={a.buildings[tile],a.landscape[tile],a.misc[tile],a.was[tile],a.damage[tile]}
+    end
   end
   local rubblePrepared=false
   function a.remove(kind,id)
@@ -67,6 +70,11 @@ function M.prepare(core, ffi, view, proposed)
   end
   function a.removeWall(tile) calls.wall(ffi.cast('void *',view.base),0,tile) end
   function a.verify(selection)
+    for tile,values in pairs(retainedTiles) do
+      assert(a.buildings[tile]==values[1] and a.landscape[tile]==values[2]
+        and a.misc[tile]==values[3] and a.was[tile]==values[4] and a.damage[tile]==values[5],
+        'map-png: native cleanup changed a retained footprint; PNG not applied')
+    end
     for key,object in pairs(a.objects) do
       if object.kind~='wall' then
         if selection.remove[key] then

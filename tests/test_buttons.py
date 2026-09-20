@@ -25,6 +25,7 @@ MENU_17_TYPES = [
 FAKE_UI = r"""
 local LAST = 0x66
 core={AOBScan=function() return 1 end}
+package.loaded['mappng.native']={resolve=function() return {ui={trimText=1}} end}
 
 local function copy(t)
   if type(t) ~= "table" then return t end
@@ -350,6 +351,11 @@ class TestCallbacksNeverRaise(ButtonsBase):
         _, menu = self.install()
         self.callback(menu, 1, "menuItemActionHandler")(2)
         self.assertEqual(self.clicks, [("export", "height")])
+
+    def test_fifth_button_dispatches_linked_refresh(self):
+        _, menu = self.install()
+        self.callback(menu, 4, "menuItemActionHandler")(5)
+        self.assertEqual(self.clicks, [("refresh", "linked")])
 
     def test_click_error_is_contained(self):
         def explode(mode, what):

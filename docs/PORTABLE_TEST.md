@@ -1,10 +1,11 @@
 # Portable test installation
 
-Target: normal **Stronghold Crusader 1.41**, with **UCP 3.0.7 Developer**.
+Primary test target: normal **Stronghold Crusader 1.41**, with **UCP 3.0.7 Developer**.
+Extreme discovery also passes offline; its live behavior is still unverified.
 This is an unsigned test module, not a complete game or framework installer.
 Do not install over your only copy of important maps.
 
-1. Close the game. Place `map-png-0.1.2.zip` directly in `<game>/ucp/modules/`.
+1. Close the game. Place `map-png-0.2.0.zip` directly in `<game>/ucp/modules/`.
    Do not extract it and do not put the ZIP inside another map-png directory.
    Move aside any older unpacked `map-png-0.1.0` folder or same-version ZIP first.
    Keep the exact filename: suffixes such as ` (2)` are invalid in UCP module
@@ -24,18 +25,23 @@ Do not install over your only copy of important maps.
 
    # In load-order, AFTER luajit, cffi and ui:
    - extension: map-png
-     version: 0.1.2
+     version: 0.2.0
    ```
 
    Preserve the file's existing `config-sparse`/`config-full` arrangement. If they
    are independent rather than YAML aliases, keep the module selection consistent.
-4. Start `Stronghold Crusader.exe`, not Extreme. Open the test map in the editor's
+4. Start `Stronghold Crusader.exe` for the primary test. Open the test map in the editor's
    scenario or multiplayer properties screen. `mapping/` is created automatically.
    No customization-menu settings are needed; activate the module and use it.
 5. Export height and terrain to fresh names. Select the resulting PNGs for import.
    Check the native heading, preview, list bounds, scrollbar and overwrite prompt.
    Check invasion height buttons, returning after map load, and ordinary map save.
    Open folder should open this game's mapping folder in Windows.
+6. Import height and/or terrain PNGs, edit them externally, then click the fifth
+   refresh button. Check the filenames to its left. Save/reload and restart the
+   game; the same saved map should retain its links. A different/new map must not
+   inherit them. Remove one linked PNG: refresh should invalidate it without
+   partially applying the other image on that click.
 
 No Python, sourcehold installation, external conversion executable, or artwork
 download is needed on the test PC. Runtime files and icons are inside the ZIP.
@@ -44,15 +50,16 @@ download is needed on the test PC. Runtime files and icons are inside the ZIP.
 signature checks or fabricate a `.sig`. Wait for maintainer review and the store's
 signing pipeline for ordinary secure-build installation.
 
-**Verification status:** offline tests and local exports/import-height succeeded
-during development. The latest scrollbar, invasion-click and language refinements
-still need full live acceptance; cross-PC operation has not been established.
+**Verification status:** 0.2.0 has automated model and binary-discovery tests,
+but no completed live acceptance. The computer-use connection was unavailable.
+Cross-PC operation and populated-map cleanup have not been established.
 Coverage is editor properties (menu 17), not every map-selection/gameplay menu.
 Report game/UCP versions, game language, screenshots and relevant `ucp3.log` errors.
-See CREDITS.md for attribution and open release-license checks.
+See CREDITS.md for attribution and recorded release permissions.
 
-**Import cleanup:** both imports remove buildings, trees, rocks and wall/decorative
-objects using native teardown before applying the PNG. Units are not deliberately
+**Import cleanup:** both imports preserve compatible objects and mask their tiles.
+Conflicting buildings, trees, rocks and wall/decorative objects use native teardown
+before applying the PNG. Units are not deliberately
 removed; move units off walls/decorative tiles if preflight refuses the import.
 Layer-only undo is unavailable. This cleanup still needs live save/reload testing
 on disposable maps; it is not yet a verified populated-map import workflow.

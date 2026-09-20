@@ -6,7 +6,10 @@ local native=require('mappng.native')
 local M={}
 local state={enabled=false}
 function M.initialize(ffi,folder)
-  if state.installed then state.enabled=true; return end
+  if state.installed then
+    state.links.open(nil); state.pendingLoad=nil; state.pendingSave=nil
+    state.enabled=true; return
+  end
   local bindings=native.resolve()
   local sidecar=folder..'\\map-png-links.json'
   local function exists(name) return paths.exists(paths.resolve(folder,name)) end
@@ -23,7 +26,7 @@ function M.initialize(ffi,folder)
     return paths.mapIdentity(paths.fromGameText(name))
   end
   local callbacks={
-    newMap=function() state.pendingLoad=nil; state.links.open(nil) end,
+    newMap=function() state.pendingLoad=nil; state.pendingSave=nil; state.links.open(nil) end,
     loadBegin=function() state.pendingLoad=identity(); state.links.open(nil) end,
     loadDone=function()
       -- This site follows the section decoding loop, not the allocation/open
@@ -46,6 +49,7 @@ function M.initialize(ffi,folder)
         local ok,err=pcall(callbacks[name],registers)
         if not ok then
           -- Detach on uncertain lifecycle state. Never refresh stale map links.
+          state.pendingLoad=nil; state.pendingSave=nil
           state.links.open(nil)
           log(WARNING,'map-png: link lifecycle '..name..': '..tostring(err))
         end

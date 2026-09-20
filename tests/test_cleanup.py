@@ -35,6 +35,7 @@ class Cleanup(unittest.TestCase):
               if nativeFailure then error('native failure') end
               if changeUnit then unitState=3 end
               if leaveFootprint then adapter.buildings[1]=1 end
+              if changeRetained then adapter.misc[2]=1 end
               noRubble=0
             end
           end}
@@ -78,7 +79,7 @@ class Cleanup(unittest.TestCase):
         """)
 
     def test_unit_state_change_or_leftover_footprint_blocks_commit(self):
-        for flag in ('changeUnit','leaveFootprint'):
+        for flag in ('changeUnit','leaveFootprint','changeRetained'):
             self.setUp()
             self.lua.execute(f"""
               proposed.defaultHeight[1]=1; {flag}=true

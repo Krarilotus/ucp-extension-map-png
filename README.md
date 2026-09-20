@@ -24,9 +24,12 @@ image slots are replaced.
 
 ## Status
 
-The current integration targets **normal Stronghold Crusader 1.41**, menu 17:
-singleplayer scenario and multiplayer editor map properties. Other map-selection
-and gameplay menus are not yet integrated. Do not use with Extreme.
+The integration covers menu 17: singleplayer scenario and multiplayer editor
+map properties. Other map-selection and gameplay menus are not integrated.
+UCP AoB discovery and layout checks replace executable-name/version allowlists.
+Discovery passes on normal Crusader 1.41 and Extreme 1.41.1-E fixtures; this is
+not live acceptance for Extreme or a promise of compatibility with every older
+build. Unknown layouts fail closed before controls or map writes are enabled.
 
 Offline regression tests cover conversion round trips, palette compatibility,
 PNG preview encoding, selection/overwrite state, localization coverage, icon
@@ -52,7 +55,7 @@ notices. GPLv3 code licensing and Monsterfish_ artwork permission are recorded.
 ## Development
 
 ```console
-python -m pip install lupa==2.6 Pillow PyYAML
+python -m pip install lupa==2.6 Pillow PyYAML capstone pefile
 python tools/build_icons.py
 python -m unittest discover -s tests -v
 ```

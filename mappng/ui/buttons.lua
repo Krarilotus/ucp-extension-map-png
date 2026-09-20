@@ -208,7 +208,7 @@ function M.install(ffi, game, onClick)
   local Menu = modules.ui:access().api.ui.Menu
   local layout = screens.currentLayout()
   state.trimText=ffi.cast('void (__thiscall *)(void *,char *,int,int)',
-    core.AOBScan('8B 44 24 08 8B 54 24 04 50 8B 44 24 10 8D 44 C0 12 52 8D 0C 81 E8 ? ? ? ? C2 0C 00'))
+    require('mappng.native').resolve().ui.trimText)
   state.textCache={}
   state.layoutKey = layout.key
 
