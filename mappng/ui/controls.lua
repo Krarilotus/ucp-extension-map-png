@@ -4,6 +4,19 @@
 -- zero-initialized ucID through the vanilla control table and moves them to 0,0.
 local M = { TYPE = 3, LAST_ENTRY = 0x66 }
 
+-- One native filename-truncation helper shared by the dialog and link labels.
+function M.boundedText(ffi, rendering, trim, cache, value, x, y, width)
+  local key=tostring(width)..':'..value
+  local buffer=cache[key]
+  if not buffer then
+    buffer=ffi.new('char[?]',#value+1)
+    ffi.copy(buffer,value,#value)
+    trim(rendering.textManager,buffer,width,18)
+    cache[key]=buffer
+  end
+  rendering.renderTextToScreenConst(rendering.textManager,buffer,x,y,0,0xCCFAFF,18,false,0)
+end
+
 function M.item(bounds, renderAddress, actionAddress, parameter)
   return {
     menuItemType = M.TYPE, ucId_0x30 = -1, menuItemRenderFunctionType = 1,

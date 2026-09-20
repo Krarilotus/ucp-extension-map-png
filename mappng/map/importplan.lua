@@ -9,7 +9,10 @@ M.PROTECTED = { [10]=true, [40]=true, [41]=true, [42]=true, [43]=true,
   [44]=true, [51]=true, [55]=true, [71]=true, [72]=true, [73]=true }
 
 local function conflicts(old, proposed, tile, object)
-  if proposed.defaultHeight and proposed.defaultHeight[tile] ~= old.defaultHeight[tile] then
+  -- Existing exports contain the visible (possibly building-raised) height.
+  -- Reimporting that exact value is not a ground change beneath the structure.
+  if proposed.defaultHeight and proposed.defaultHeight[tile] ~= old.defaultHeight[tile]
+      and proposed.defaultHeight[tile] ~= old.height[tile] then
     return true
   end
   if proposed.logic1 then
@@ -61,6 +64,12 @@ function M.build(old, proposed, objects, tileCount, neighbours)
       -- Native deletion uses this group globally, not per owner/type.
       if groups[object.group] then join(id, groups[object.group])
       else groups[object.group] = id end
+    end
+  end
+  for id, object in pairs(objects) do
+    for _, linked in ipairs(object.links or {}) do
+      assert(objects[linked], 'map-png: dangling linked object')
+      join(id, linked)
     end
   end
   for tile, ids in pairs(protectedAt) do

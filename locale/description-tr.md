@@ -1,4 +1,4 @@
-Yükseklik haritalarını ve araziyi harita düzenleyicisinde PNG olarak içe ve dışa aktarın. İçe aktarma nesneleri ve yapıları siler.
+Harita düzenleyicide yükseklik ve arazi PNG’lerini içe/dışa aktarın. Bağlı PNG’leri tek tıkla yenileyin. Çakışan nesneler ve yapılar kaldırılır.
 
 ![Harita düzenleyicisindeki PNG düğmeleri](https://raw.githubusercontent.com/Krarilotus/ucp-extension-map-png/v0.1.1-test.1/resources/store-preview.png)
 

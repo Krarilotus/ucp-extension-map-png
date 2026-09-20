@@ -24,6 +24,7 @@ MENU_17_TYPES = [
 
 FAKE_UI = r"""
 local LAST = 0x66
+core={AOBScan=function() return 1 end}
 
 local function copy(t)
   if type(t) ~= "table" then return t end
@@ -174,7 +175,7 @@ class TestButtonsInstall(ButtonsBase):
 
     def test_installs_four_buttons(self):
         added, _ = self.install()
-        self.assertEqual(added, 4)
+        self.assertEqual(added, 5)
         self.assertEqual(self.logged("ERROR"), [])
 
     def test_reenable_does_not_duplicate_native_items(self):
@@ -186,7 +187,7 @@ class TestButtonsInstall(ButtonsBase):
         self.assertEqual(self.clicks, [])
         self.assertEqual(len(self.lua.globals().drawn), 0)
         added, _ = self.install()
-        self.assertEqual(added, 4)
+        self.assertEqual(added, 5)
         self.assertEqual(self.walk(menu), before)
         self.callback(menu, 0, "menuItemActionHandler")(1)
         self.assertEqual(self.clicks, [("import", "height")])
@@ -195,8 +196,8 @@ class TestButtonsInstall(ButtonsBase):
         _, menu = self.install()
         types = self.walk(menu)
         self.assertIsNotNone(types, "menu 17 lost its LAST_ENTRY terminator")
-        self.assertEqual(types[4:], MENU_17_TYPES, "the game's own items were disturbed")
-        self.assertEqual(len(types), 19)
+        self.assertEqual(types[5:], MENU_17_TYPES, "the game's own items were disturbed")
+        self.assertEqual(len(types), 20)
 
     def test_buttons_are_standalone_items(self):
         """No interaction-group flag, or MainButtons would render them."""
@@ -226,7 +227,7 @@ class TestButtonsInstall(ButtonsBase):
         # Original menu17 items 2 and 9 remain hit-testable in SP despite
         # their group renderer omitting them. These are measured native bounds.
         for original, x, y, w, h in [(2, 50, 100, 365, 280), (9, 270, 342, 120, 30)]:
-            item = menu.menuItems[original + 4]
+            item = menu.menuItems[original + 5]
             item.position.position.x, item.position.position.y = x, y
             item.itemWidth, item.itemHeight = w, h
         for action in range(4):
@@ -234,14 +235,14 @@ class TestButtonsInstall(ButtonsBase):
             x = item.position.position.x + item.itemWidth // 2
             y = item.position.position.y + item.itemHeight // 2
             hits = []
-            for index in range(19):
+            for index in range(20):
                 target = menu.menuItems[index]
                 p = target.position.position
                 if p.x <= x < p.x + (target.itemWidth or 0) and p.y <= y < p.y + (target.itemHeight or 0):
                     hits.append(index)
             self.assertEqual(hits[0], action, 'native traversal stops at first hit')
             if action < 2:
-                self.assertIn(6, hits, 'fixture must reproduce the hidden overlap')
+                self.assertIn(7, hits, 'fixture must reproduce the hidden overlap')
             self.callback(menu, hits[0], "menuItemActionHandler")(action + 1)
         self.assertEqual(self.clicks, [("import", "height"), ("export", "height"),
                                       ("import", "terrain"), ("export", "terrain")])
@@ -249,7 +250,7 @@ class TestButtonsInstall(ButtonsBase):
     def test_install_logs_what_the_game_will_read(self):
         self.install()
         items = [m for m in self.logged("INFO") if "map-png: item [" in m]
-        self.assertEqual(len(items), 4)
+        self.assertEqual(len(items), 5)
         self.assertIn("type=0x3", items[0])
 
     def test_recorded_indices_point_at_our_items(self):
@@ -262,7 +263,7 @@ class TestButtonsInstall(ButtonsBase):
         _, menu = self.install()
         screen = self.buttons.installed()[1]["screen"]
         screen["offset"] = self.lua.table(x=5, y=7)
-        self.assertEqual(self.buttons.reposition(17), 4)
+        self.assertEqual(self.buttons.reposition(17), 5)
         self.assertEqual(menu["menuItems"][0]["position"]["position"]["x"], 274 + 5)
         self.assertEqual(menu["menuItems"][0]["position"]["position"]["y"], 343 + 7)
         self.assertEqual(menu["menuItems"][18]["position"]["position"]["x"], 0)

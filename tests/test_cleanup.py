@@ -1,100 +1,113 @@
 import unittest
-import struct
 import lua_harness
-from test_tilemap_binary import PEImage, GAME_DIR
 
 
 class Cleanup(unittest.TestCase):
     def setUp(self):
         self.lua = lua_harness.runtime()
-        self.module = lua_harness.load(self.lua, 'mappng.map.cleanup')
-        self.lua.globals().cleanup = self.module
+        self.lua.execute("""
+          events={}; calls=0; noRubble=7; unitState=2
+          local function zeros() return setmetatable({}, {__index=function() return 0 end}) end
+          live={height=zeros(),defaultHeight=zeros(),logic1=zeros(),logic2=zeros()}
+          proposed={height=zeros(),defaultHeight=zeros(),logic1=zeros(),logic2=zeros()}
+          active={['building:1']=true,['building:2']=true}
+          adapter={objects={
+              ['building:1']={kind='building',id=1,type=1,uid=101,tiles={1}},
+              ['building:2']={kind='building',id=2,type=1,uid=102,tiles={2}}},
+            capacity={building=3,tree=2,rock=2},tileCount=4,
+            bases={building=100},buildings=zeros(),landscape=zeros(),units=zeros(),
+            misc=zeros(),was=zeros(),damage=zeros()}
+          adapter.active=function(kind,id) return active[kind..':'..id] end
+          adapter.identity=function(kind,id) return 100+id end
+          adapter.record=function(kind,id) return 1000+id*1000 end
+          adapter.neighbours=function() return {} end
+          adapter.wall=function() return false end
+          package.loaded['mappng.map.objects']={WALL_MASK=0x00410B00,open=function() return adapter end}
+          package.loaded['mappng.native']={resolve=function()
+            return {base=100,functions={building=1,tree=2,rock=3,wall=4},
+              noRubble=200,units=300,unitCapacity=2} end}
+          ffi={cast=function(ctype,address)
+            if ctype=='void *' then return address end
+            return function(this,id)
+              calls=calls+1; events[#events+1]='remove'..id
+              assert(noRubble==1)
+              active['building:'..id]=false
+              if nativeFailure then error('native failure') end
+              if changeUnit then unitState=3 end
+              if leaveFootprint then adapter.buildings[1]=1 end
+              noRubble=0
+            end
+          end}
+          core={readSmallInteger=function() return unitState end,
+            readInteger=function() return noRubble end,
+            writeInteger=function(_,value) noRubble=value end,
+            writeSmallInteger=function(_,value) assert(value==0) end}
+          cleanup=require('mappng.map.cleanup')
+          function prepare() return cleanup.prepare(core,ffi,{base=100,layers=live},proposed) end
+        """)
 
-    def test_teardown_order_and_linked_duplicates(self):
-        self.lua.execute('''
-          local events, live = {}, {building={[1]=true,[2]=true},tree={[1]=true},rock={[1]=true}}
-          local a={capacity={building=3,tree=2,rock=2},tileCount=2}
-          a.preflight=function() events[#events+1]='preflight' end
-          a.active=function(k,id) return live[k][id] end
-          a.remove=function(k,id)
-            events[#events+1]=k..id; live[k][id]=nil
-            if k=='building' then live.building[2]=nil end
-          end
-          a.wall=function(t) return t==1 end
-          a.removeWall=function(t) events[#events+1]='wall'..t end
-          a.verify=function() events[#events+1]='verify' end
-          cleanup.execute(a)
-          assert(table.concat(events,',')=='preflight,building1,tree1,rock1,wall1,verify')
-        ''')
+    def test_only_conflicting_building_removed_and_rubble_cleared(self):
+        self.lua.execute("""
+          proposed.defaultHeight[1]=1
+          adapter.misc[1]=0x6000; adapter.was[1]=8; adapter.damage[1]=9
+          local remove=prepare(); assert(calls==0); remove()
+          assert(calls==1 and not active['building:1'] and active['building:2'])
+          assert(adapter.misc[1]==0 and adapter.was[1]==0 and adapter.damage[1]==0)
+          assert(noRubble==7)
+        """)
+
+    def test_no_change_does_not_delete_anything(self):
+        self.lua.execute("prepare()(); assert(calls==0)")
+
+    def test_retained_occupancy_and_raised_height_are_masked(self):
+        self.lua.execute("""
+          live.height[2]=8; live.logic1[2]=0x8400; proposed.logic1[2]=0x8000
+          prepare()(); assert(calls==0 and proposed.height[2]==8 and proposed.logic1[2]==0x8400)
+        """)
+
+    def test_siege_unit_conflict_aborts_before_mutation(self):
+        self.lua.execute("""
+          adapter.objects['building:1'].type=80; proposed.defaultHeight[1]=1
+          assert(not pcall(prepare)); assert(calls==0)
+        """)
+
+    def test_native_failure_restores_rubble_switch(self):
+        self.lua.execute("""
+          proposed.defaultHeight[1]=1; nativeFailure=true
+          local remove=prepare(); assert(not pcall(remove)); assert(noRubble==7)
+        """)
+
+    def test_unit_state_change_or_leftover_footprint_blocks_commit(self):
+        for flag in ('changeUnit','leaveFootprint'):
+            self.setUp()
+            self.lua.execute(f"""
+              proposed.defaultHeight[1]=1; {flag}=true
+              local remove=prepare(); assert(not pcall(remove))
+            """)
+
+    def test_linked_native_cascade_can_remove_selected_later_record(self):
+        self.lua.execute("""
+          local a={capacity={building=3,tree=1,rock=1},tileCount=0}
+          a.preflight=function() end
+          a.active=function(_,id) return active['building:'..id] end
+          a.remove=function(_,id) calls=calls+1; active['building:1']=false; active['building:2']=false end
+          a.verify=function() end
+          cleanup.execute(a,{remove={['building:1']=true,['building:2']=true}})
+          assert(calls==1)
+        """)
+
+    def test_staging_required_no_whole_map_fallback(self):
+        self.lua.execute("assert(not pcall(cleanup.prepare,core,ffi,{base=100,layers=live})); assert(calls==0)")
 
     def test_failed_preflight_never_deletes(self):
-        self.lua.execute('''
+        self.lua.execute("""
           local a={preflight=function() error('occupied wall') end,
             remove=function() error('MUTATION') end}
-          local ok,err=pcall(cleanup.execute,a)
+          local ok,err=pcall(cleanup.execute,a,{remove={}})
           assert(not ok and tostring(err):find('occupied wall'))
-        ''')
-
-    def test_empty_map_before_and_after_entering_map_view(self):
-        self.lua.execute('''
-          limit=2000; activeBuilding=false; deletes=0
-          local zeros=setmetatable({}, {__index=function() return 0 end})
-          local core={readInteger=function(addr)
-            if addr==0xF98528 then return limit end
-            for _,spec in pairs(cleanup.BINDINGS) do
-              if addr==spec[1] then return spec[2] end
-            end
-            return 0
-          end, readSmallInteger=function(addr)
-            if activeBuilding and addr==0xF98520+0x14+0x32C+0xD0 then return 2 end
-            return 0
-          end}
-          local ffi={cast=function(kind, addr)
-            if kind:find('__thiscall',1,true) then
-              return function() deletes=deletes+1 end
-            end
-            return zeros
-          end}
-          local view={build='Crusader 1.41',base=0x1A93208,layers={logic1=zeros}}
-          cleanup.prepare(core,ffi,view)()
-          limit=0 -- native updateBuildings on an empty map
-          cleanup.prepare(core,ffi,view)()
-          cleanup.prepare(core,ffi,view)() -- repeated import after returning
-          assert(deletes==0)
-          activeBuilding=true
-          local ok,err=pcall(cleanup.prepare,core,ffi,view)
-          assert(not ok and tostring(err):find('zero building scan limit'))
-          assert(deletes==0)
-          activeBuilding=false
-          for _,bad in ipairs({-1,2001}) do
-            limit=bad
-            local ok,err=pcall(cleanup.prepare,core,ffi,view)
-            assert(not ok and tostring(err):find('invalid building scan limit: '..bad,1,true))
-          end
-          assert(deletes==0)
-        ''')
-
-    def test_extreme_rejected_before_binding(self):
-        self.lua.execute('''
-          local ok,err=pcall(cleanup.prepare,{}, {}, {build='Crusader Extreme 1.41.1-E'})
-          assert(not ok and tostring(err):find('only supported'))
-        ''')
-
-    @unittest.skipUnless((GAME_DIR / 'Stronghold Crusader.exe').exists(), 'game fixture absent')
-    def test_native_function_guards_match_executable(self):
-        pe = PEImage(GAME_DIR / 'Stronghold Crusader.exe')
-        for _, binding in self.module.BINDINGS.items():
-            self.assertEqual(struct.unpack('<I', pe.read(binding[1], 4))[0], binding[2])
-
-    def test_shared_staging_precedes_cleanup_and_commit(self):
-        source = (lua_harness.ROOT / 'mappng/actions.lua').read_text(encoding='utf-8')
-        self.assertLess(source.index('height.import(layers'), source.index('cleanup.prepare'))
-        self.assertLess(source.index('terrain.import(layers'), source.index('cleanup.prepare'))
-        self.assertLess(source.index('pcall(remove)'), source.index('ffi.copy(v.layers'))
-        self.assertIn('M.importLinked({height=name})', source)
-        self.assertIn('M.importLinked({terrain=name})', source)
+        """)
 
     def test_no_full_eraser_or_unit_deletion(self):
-        source = (lua_harness.ROOT / 'mappng/map/cleanup.lua').read_text(encoding='utf-8').lower()
-        for forbidden in ('0x508ec0', '0x5017c0', '0x53e790', 'ffi.fill'):
-            self.assertNotIn(forbidden, source)
+        source=(lua_harness.ROOT/'mappng/map/cleanup.lua').read_text().lower()
+        for forbidden in ('0x508ec0','0x5017c0','0x53e790','ffi.fill'):
+            self.assertNotIn(forbidden,source)

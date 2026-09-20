@@ -1,12 +1,11 @@
 # Linked refresh (0.2.0)
 
-Status: development branch, NOT a 0.2.0 release. Implemented and unit-tested:
-combined-image import transaction, data-only link state (including restart/Save
-As/missing-image cases), and pure conflict planning. Refresh artwork is isolated
-and reviewed at integer 2x. The current native cleanup still uses the 0.1.2
-policy: the new planner and link state are deliberately NOT connected to the
-game until the lifecycle/footprint adapters below are verified. Do not describe
-this checkpoint as supporting selective cleanup or persistent links in-game.
+Status: 0.2.0 release candidate, integration implemented; live acceptance pending.
+The refresh control, sidecar lifecycle and selective native adapter are wired to
+the shared import transaction. Unit tests cover transaction failures, link state,
+conflicts and teardown; executable-backed tests run UCP's real AOBExtract against
+normal and Extreme fixtures. These are not a substitute for a live map test.
+Computer-use testing was attempted on 2026-09-20 but the native pipe was unavailable.
 
 ## Design
 

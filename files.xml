@@ -19,5 +19,6 @@
     <file src="docs/PORTABLE_TEST.md" target="docs" />
     <file src="docs/IMPORT_CLEANUP.md" target="docs" />
     <file src="docs/RELEASE_READINESS.md" target="docs" />
+    <file src="docs/LINKED_REFRESH.md" target="docs" />
   </files>
 </module>

@@ -32,6 +32,9 @@ class ImportPlan(unittest.TestCase):
     def test_change_any_footprint_tile_removes_whole_object(self):
         self.check('proposed.defaultHeight[2]=3; assert(plan().remove.a)')
 
+    def test_reimporting_exported_raised_height_preserves_building(self):
+        self.check('proposed.defaultHeight[2]=7; assert(plan().keep.a)')
+
     def test_hard_terrain_conflicts(self):
         for flag in (1, 0x80, 0x4000, 0x20000, 0x80000, 0x100000, 0x20000000):
             self.check(f'proposed.logic1[2]={flag}; assert(plan().remove.a)')
