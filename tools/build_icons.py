@@ -54,3 +54,16 @@ if __name__ == "__main__":
             review.paste(enlarged, (x, 36), enlarged)
             review.paste(native, (x + 75, 144), native)
     review.save(ICONS.parents[2] / "docs" / "artwork-review.png")
+
+    # Fifth button: the supplied transparent glyph is 27x12, not 26x11.
+    # Preserve every original pixel at integer 2x instead of distorting/cropping
+    # it to the older icons' dimensions. It fits inside the same 60x32 chrome.
+    with Image.open(SOURCE / "refresh_import.png") as original:
+        glyph = original.crop(original.getbbox()).resize((54, 24), Image.Resampling.NEAREST)
+        glyph.save(ICONS / "refresh_import.png")
+        for mode in (555, 565):
+            (ICONS / f"refresh_import.{mode}.tgx").write_bytes(encode(glyph, mode == 565))
+        preview = Image.new("RGB", (324, 144), (35, 30, 25))
+        enlarged = glyph.resize(preview.size, Image.Resampling.NEAREST)
+        preview.paste(enlarged, (0, 0), enlarged)
+        preview.save(ICONS.parents[2] / "docs" / "refresh-artwork-review.png")

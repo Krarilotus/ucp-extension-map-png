@@ -51,3 +51,15 @@ class ImportTransaction(unittest.TestCase):
 
     def test_cleanup_failure_does_not_commit_png_and_refreshes(self):
         self.lua.execute("failRemove=true; assert(not pcall(actions.importTerrain,'test.png')); assert(table.concat(events,',')=='decode,convert,preflight,remove,refresh'); assert(live.logic1[0]==7)")
+
+    def test_combined_refresh_has_one_cleanup_and_one_commit_boundary(self):
+        self.lua.execute("actions.importLinked({height='h.png',terrain='t.png'}); assert(table.concat(events,',')=='decode,decode,convert,convert,preflight,remove,refresh'); assert(live.height[0]==9 and live.logic1[0]==9)")
+
+    def test_second_decode_failure_does_not_apply_first_image(self):
+        self.lua.execute("package.loaded['mappng.png'].readRGB=function() error('missing PNG') end; assert(not pcall(actions.importLinked,{height='h.png',terrain='missing.png'})); assert(table.concat(events,',')=='decode'); assert(live.height[0]==7)")
+
+    def test_second_conversion_failure_does_not_apply_first_image(self):
+        self.lua.execute("package.loaded['mappng.map.terrain'].import=function() error('invalid PNG') end; assert(not pcall(actions.importLinked,{height='h.png',terrain='bad.png'})); assert(table.concat(events,',')=='decode,decode,convert'); assert(live.height[0]==7)")
+
+    def test_empty_refresh_does_not_mutate(self):
+        self.lua.execute("assert(not pcall(actions.importLinked,{})); assert(#events==0)")

@@ -88,11 +88,11 @@ class Cleanup(unittest.TestCase):
 
     def test_shared_staging_precedes_cleanup_and_commit(self):
         source = (lua_harness.ROOT / 'mappng/actions.lua').read_text(encoding='utf-8')
-        self.assertLess(source.index('height.import(staged'), source.index('cleanup.prepare'))
-        self.assertLess(source.index('terrain.import(staged'), source.index('cleanup.prepare'))
+        self.assertLess(source.index('height.import(layers'), source.index('cleanup.prepare'))
+        self.assertLess(source.index('terrain.import(layers'), source.index('cleanup.prepare'))
         self.assertLess(source.index('pcall(remove)'), source.index('ffi.copy(v.layers'))
-        self.assertIn("importImage('height', image)", source)
-        self.assertIn("importImage('terrain', image)", source)
+        self.assertIn('M.importLinked({height=name})', source)
+        self.assertIn('M.importLinked({terrain=name})', source)
 
     def test_no_full_eraser_or_unit_deletion(self):
         source = (lua_harness.ROOT / 'mappng/map/cleanup.lua').read_text(encoding='utf-8').lower()
