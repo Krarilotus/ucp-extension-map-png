@@ -2,6 +2,7 @@
 -- fallback. Layout offsets remain a documented Crusader 1.41 ABI contract.
 local M = {}
 M.patterns = {
+  placement = '8B 0C 85 I(? ? ? ?) 89 8E 58 49 55 00 53 B9 ? ? ? ? E8 ? ? ? ? 8B 14 85 I(? ? ? ?) 53 B9 ? ? ? ? 89 96 64 49 55 00',
   preview = '83 3D I(? ? ? ?) FF 0F 85 ? ? ? ? 39 2D I(? ? ? ?) 53 8B 1D ? ? ? ? 75 ? 81 C3 90 01 00 00 EB ? 81 C3 58 02 00 00 8B 35 ? ? ? ? 8B 3D I(? ? ? ?) 81 C6 F0 00 00 00',
   sections = '? ? ? ? 00 00 00 00 20 74 02 00 01 00 E9 03 ? ? ? ? 00 00 00 00 20 74 02 00 01 00 09 04 ? ? ? ? 00 00 00 00 20 74 02 00 01 00 EA 03',
   banner = '83 44 24 08 08 53 8B 5C 24 08 55 8B 6C 24 14 83 C3 08 83 ED 10 56 33 C0 57',
@@ -20,9 +21,11 @@ M.patterns = {
   landscape = '53 55 56 8B 74 24 10 69 F6 9C 00 00 00 8B 86 I(? ? ? ?) 0F BF 9E ? ? ? ?',
   shape = '8B 94 00 I(? ? ? ?) 03 C0 89 91 8C 49 55 00 8B 90 ? ? ? ? 89 91 90 49 55 00',
   units = 'C7 05 I(? ? ? ?) I(? ? ? ?) C7 05 ? ? ? ? ? ? ? ? C7 05 ? ? ? ? ? ? ? ? C7 86 70 F0 53 00',
-  loadBegin = '83 EC 0C 53 56 8B F1 8B 46 20 33 DB 68 80 8D 5B 00',
+  -- map-extensions owns the read/write entry hooks and allocation sizes.
+  -- Observe inside the original body, after its trampoline rejoins execution.
+  loadBegin = '89 44 24 14 89 5E 20 E8 ? ? ? ? 83 C4 04 3B C3 89 46 10',
   loadDone = '89 5E 10 8B 15 ? ? ? ? 83 C4 08 39 1D ? ? ? ? 89 1D ? ? ? ?',
-  saveBegin = '83 EC 10 53 55 56 8B F1 8B 46 20 57 33 FF 33 ED 8D 5E 24',
+  saveBegin = '89 44 24 1C 89 7E 20 89 6C 24 18 89 7C 24 14 89 7E 0C 89 7E 28 89 3B',
   saveDone = '83 C4 30 C7 46 10 00 00 00 00 5F 5E 5D 5B 83 C4 10 C2 04 00',
   newMap = '53 55 56 8B F1 57 33 FF 89 BE 1C 29 55 00 89 BE 20 29 55 00',
   resource = 'B9 I(? ? ? ?) @(E8 ? ? ? ?) 53 68 00 80 00 00 50 E8 ? ? ? ? 8B F8 83 CD FF',
@@ -34,11 +37,17 @@ function M.resolve()
   for name, pattern in pairs(M.patterns) do
     -- AOBExtract in framework 3.0.7 expects at least one capture (including in
     -- its diagnostic formatter); plain function signatures use core.AOBScan.
-    found[name] = pattern:find('(',1,true) and {utils.AOBExtract(pattern)} or {core.AOBScan(pattern)}
+    local ok, result = pcall(function()
+      return pattern:find('(',1,true) and {utils.AOBExtract(pattern)} or {core.AOBScan(pattern)}
+    end)
+    assert(ok, 'map-png: native binding '..name..' failed: '..tostring(result))
+    found[name] = result
     assert(found[name][1], 'map-png: native binding unavailable: '..name)
   end
   local r = {functions={}, hooks={},ui={}}
   r.sections=found.sections[1]
+  r.placement=found.placement[2]-0x5DC
+  assert(found.placement[3]==r.placement+0x794,'map-png: unknown building placement layout')
   r.preview={previewSuppressed=found.preview[2],multiplayerLayout=found.preview[3],mapSize=found.preview[4]}
   for _,name in ipairs({'banner','inputRender','rowBackground','scrollRender','arrowRender','trimText','activate','pop'}) do r.ui[name]=found[name][1] end
   r.input=found.activate[2]; r.menuInput=found.activate[3]-0x88

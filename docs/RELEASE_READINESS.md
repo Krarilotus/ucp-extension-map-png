@@ -1,15 +1,21 @@
-# 0.2.0 release candidate
+# 0.2.1 test candidate
 
 Refresh, per-map sidecar links, selective cleanup and updated localized warnings
-are implemented. 154 automated tests pass after the UCP-contract refactor;
+are implemented. Automated tests cover the UCP-contract refactor;
 native AoB discovery is checked with UCP's real helper against normal and Extreme
 executables, including exact detour instruction spans. Fixed-address map/picker
 bindings and the executable-version allowlist were removed; layout invariants
 still fail closed. Lifecycle and complete-footprint adapter tests are included.
 The existing UI 1.0.1 dependency is unchanged; no new UI download is needed.
 
-Live acceptance remains open: computer-use's native pipe failed twice on
-2026-09-20. Do not merge the Store PR or call this build live-tested until map
+0.2.1 also covers map-extensions entry detours/allocation changes and selective
+native height/terrain rules with final-footprint cliff checks. These checks do
+not establish universal native placement compatibility.
+
+Live acceptance remains open: on 2026-09-21 the repaired cua runtime initialized
+but exposed no apps/browsers; native app control is disabled in this session.
+No desktop ownership slot was acquired and no game UI action was performed.
+Do not merge the Store PR or call this build live-tested until map
 load/save/restart links, missing-file refresh, populated maps, connected keeps,
 farms, units, rubble and both menu layouts pass. The current store screenshot is
 from 0.1.x and shows the original four controls, not the new refresh row.
