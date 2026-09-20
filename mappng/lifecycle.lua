@@ -40,7 +40,7 @@ function M.initialize(ffi,folder)
       state.pendingSave=nil
     end,
   }
-  local sizes={newMap=5,loadBegin=5,loadDone=9,saveBegin=5,saveDone=10}
+  local sizes={newMap=5,loadBegin=7,loadDone=9,saveBegin=7,saveDone=10}
   -- Resolve all sites before installing any hook. The spans contain complete
   -- non-branching instructions: no relative calls/jumps need relocation.
   for _,name in ipairs({'newMap','loadBegin','loadDone','saveBegin','saveDone'}) do

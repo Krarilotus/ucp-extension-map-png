@@ -12,7 +12,7 @@ class Objects(unittest.TestCase):
             readSmallInteger=function(a) return memory[a] end}
           ffi={cast=function(_,a) arrays[a]=arrays[a] or zeros(); return arrays[a] end}
           native={base=0x1000000,buildings=0x2000000,landscape=0x3000000,
-            rowY=0x4000000,rows=0x5000000,shapes=0x6000000}
+            rowY=0x4000000,rows=0x5000000,shapes=0x6000000,placement=0x7000000}
           view={base=native.base,layers={logic1=zeros()}}
           local pixels=require('mappng.map.diamond').buildTileToPixel()
           for tile,pixel in pairs(pixels) do
@@ -46,6 +46,15 @@ class Objects(unittest.TestCase):
           building(1); local a=open(); local b=a.objects['building:1']
           assert(#b.tiles==4 and b.uid==101 and b.type==1)
           assert(#a.neighbours(b.tiles[1])==4)
+        ''')
+
+    def test_placement_profiles_come_from_native_tables(self):
+        self.lua.execute('''
+          building(1); memory[native.placement+0x5DC+4]=200
+          memory[native.placement+0x794+4]=12
+          local a=open(); local p=a.placement(a.objects['building:1'])
+          assert(p.limit==200 and p.difference==12 and p.marsh==0)
+          assert(#a.neighbours(a.objects['building:1'].tiles[1],true)==8)
         ''')
 
     def test_dangling_occupancy_or_invalid_geometry_rejected(self):

@@ -34,14 +34,36 @@ function M.open(core, ffi, view, native)
     assert(x>=0 and x<400,'map-png: invalid tile column')
     coordinates[tile]={x,y}; at[y*400+x]=tile
   end
-  function a.neighbours(tile)
+  function a.neighbours(tile,diagonals)
     local p=coordinates[tile]; local list={}
     for _,d in ipairs({{-1,0},{1,0},{0,-1},{0,1}}) do
       local x,y=p[1]+d[1],p[2]+d[2]
       local id=x>=0 and x<400 and y>=0 and y<400 and at[y*400+x]
       if id then list[#list+1]=id end
     end
+    if diagonals then
+      for _,d in ipairs({{-1,-1},{1,-1},{-1,1},{1,1}}) do
+        local x,y=p[1]+d[1],p[2]+d[2]
+        local id=x>=0 and x<400 and y>=0 and y<400 and at[y*400+x]
+        if id then list[#list+1]=id end
+      end
+    end
     return list
+  end
+  local profiles={}
+  function a.placement(object)
+    if object.kind~='building' then return nil end
+    local id=object.type
+    assert(id>=1 and id<110,'map-png: unsupported building type')
+    if not profiles[id] then
+      local function field(offset) return core.readInteger(native.placement+offset+id*4) end
+      local p={limit=field(0x5DC),difference=field(0x794),rocky=field(0xB04),marsh=field(0xE74),moat=field(0x102C)}
+      assert(math.abs(p.limit)<=255 and p.difference>=0 and p.difference<=255
+        and p.rocky>=0 and p.rocky<=1 and p.marsh>=0 and p.marsh<=2 and p.moat>=0 and p.moat<=1,
+        'map-png: unsupported building terrain rules')
+      profiles[id]=p
+    end
+    return profiles[id]
   end
   local function add(object,tile)
     assert(coordinates[tile], 'map-png: invalid object tile')
