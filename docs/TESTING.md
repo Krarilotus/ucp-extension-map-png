@@ -9,8 +9,9 @@ python tools/deploy.py "S:/Projects/Harness/test-builds/map-png-test"
 ```
 
 The unsigned module needs a Developer UCP build and its dependencies from
-`definition.yml`. Launch **Stronghold Crusader.exe**, normal 1.41, not Extreme.
-The native dialog bindings reject incompatible code.
+`definition.yml`. The primary live target is **Stronghold Crusader.exe**, normal
+1.41. Extreme discovery passes offline but still needs its own live test.
+The native bindings reject unmatched code or inconsistent layouts.
 
 ## Position and artwork regression
 
@@ -19,6 +20,8 @@ multiplayer map types and each available map size.
 
 - Four distinct glyphs must appear inside native surrounds below the minimap.
 - Left to right: import height, export height, import terrain, export terrain.
+- Fifth button below the rightmost: refresh linked PNGs; filenames appear left
+  of it, height above terrain. Test both links, one link and missing files.
 - The 252px row stays centred below the preview, even when the preview is smaller.
 - Leaving, loading another map and returning must not move controls to (0,0).
 - Opening a modal must hide the underlying row and block its actions.

@@ -1,4 +1,4 @@
--- Crusader 1.41 PNG dialog. Uses native modal chrome, table stripes, filename
+-- AoB-bound Crusader PNG dialog. Uses native modal chrome, table stripes, filename
 -- input and translated game strings; never calls the game's map save handlers.
 local paths = require("mappng.paths")
 local Picker = require("mappng.ui.picker")
@@ -133,21 +133,18 @@ function M.initialize(ffi, game, manager, pngBound)
   if state.ready then return end
   state.ffi, state.game = ffi, game
   i18n.initialize(ffi, game)
-  -- Fixed addresses are intentionally limited to the verified 1.41 build.
-  -- Refuse mismatched code before constructing a menu or accessing globals.
-  local function bind(address, prefix, ctype)
-    assert((core.readInteger(address) & 0xFFFFFFFF) == prefix, "map-png: unsupported PNG dialog game code")
-    return ffi.cast(ctype, address)
+  local native=require('mappng.native').resolve()
+  local function bind(name,ctype)
+    return ffi.cast(ctype,native.ui[name])
   end
-  state.banner = bind(0x468FE0, 0x08244483, "void (__thiscall *)(void *,int,int,int,int)")
-  state.inputRender = bind(0x4932E0, 0xED31ACA1, "void (__cdecl *)(int)")
-  -- The remaining bindings are checked against the same normal-game image.
-  state.rowBackground = bind(0x4692E0, 0x31A80D8B, "void (__thiscall *)(void *,int,int,int)")
-  state.scrollRender = bind(0x492C60, 0x1024448B, "void (__cdecl *)(int,int,int,int,bool)")
-  state.arrowRender = bind(0x469290, 0x04247C83, "void (__thiscall *)(void *,int,int)")
-  state.trimText = bind(0x469F50, 0x0824448B, "void (__thiscall *)(void *,char *,int,int)")
-  state.activate = bind(0x4916C0, 0x83F18B56, "void (__thiscall *)(void *,int)")
-  state.pop = bind(0x493900, 0x8B64418B, "void (__thiscall *)(void *)")
+  state.banner = bind('banner', "void (__thiscall *)(void *,int,int,int,int)")
+  state.inputRender = bind('inputRender', "void (__cdecl *)(int)")
+  state.rowBackground = bind('rowBackground', "void (__thiscall *)(void *,int,int,int)")
+  state.scrollRender = bind('scrollRender', "void (__cdecl *)(int,int,int,int,bool)")
+  state.arrowRender = bind('arrowRender', "void (__thiscall *)(void *,int,int)")
+  state.trimText = bind('trimText', "void (__thiscall *)(void *,char *,int,int)")
+  state.activate = bind('activate', "void (__thiscall *)(void *,int)")
+  state.pop = bind('pop', "void (__thiscall *)(void *)")
   ffi.cdef([[
     typedef struct MapPngUserText {
       int index, changed, returned, enabled;
@@ -156,9 +153,9 @@ function M.initialize(ffi, game, manager, pngBound)
     } MapPngUserText;
   ]])
   assert(ffi.sizeof("MapPngUserText") == 4372)
-  state.input = ffi.cast("MapPngUserText *", 0x1652740)
-  state.menuInput = ffi.cast("void *", 0x11265A8)
-  state.modalStack = ffi.cast("int *", 0x1126604)
+  state.input = ffi.cast("MapPngUserText *", native.input)
+  state.menuInput = ffi.cast("void *", native.menuInput)
+  state.modalStack = ffi.cast("int *", native.menuInput+0x5C)
   state.id = manager.getAvailableModalMenuID(2080)
   local items = {}
   local function item(x, y, width, height, draw, click)

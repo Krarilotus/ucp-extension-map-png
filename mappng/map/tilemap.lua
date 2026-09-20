@@ -19,19 +19,12 @@
 --- hardcoded `futureMapOrientation = 0x01FE7AA8` is exactly that base plus
 --- `+0x5548A0`.
 ---
---- Crusader Extreme 1.41.1-E has the identical `TileMapState` layout, relocated
---- to `0x02526708`; its section table is a different address. Each known table
---- is tried in turn and accepted only if it passes the full cross-check, so
---- trying one on the wrong executable fails safe instead of writing 80400 tiles
---- into the wrong allocation.
+--- UCP discovers the section table and native map base independently by AoB.
+--- Neither executable names nor a list of known addresses gate compatibility.
+--- The four layer sizes/offsets must still agree with the discovered native ABI.
 
 local M = {}
 
--- Same constants sourcehold uses in read_address_list_shc / _shce.
-M.SECTION_TABLES = {
-  { name = "Crusader 1.41", start = 0x00B92A58, stop = 0x00B93208 },
-  { name = "Crusader Extreme 1.41.1-E", start = 0x00B92BE8, stop = 0x00B93398 },
-}
 M.SECTION_RECORD_SIZE = 16
 
 -- Offsets within TileMapState, from OpenSHC.
@@ -76,6 +69,7 @@ function M.readSectionTable(core, start, stop)
       size = core.readInteger(address + 8),
       sectionId = core.readSmallInteger(address + 14),
     }
+    if record.address == 0 then break end
     if record.sectionId ~= 0 and record.address ~= 0 then
       sections[record.sectionId] = { address = record.address, size = record.size }
     end
@@ -110,28 +104,19 @@ local function deriveBase(sections)
   return base, nil
 end
 
---- Finds the TileMapState base by trying each known section table.
+--- Validate discovered sections against independently discovered native code.
 ---
 ---@param core table the UCP core API
 ---@return number base, string build name of the table that matched
 function M.resolveBase(core)
-  local problems = {}
-
-  for _, candidate in ipairs(M.SECTION_TABLES) do
-    local ok, sections = pcall(M.readSectionTable, core, candidate.start, candidate.stop)
-    if ok then
-      local base, problem = deriveBase(sections)
-      if base ~= nil then
-        return base, candidate.name
-      end
-      problems[#problems + 1] = string.format("%s: %s", candidate.name, problem)
-    else
-      problems[#problems + 1] = string.format("%s: %s", candidate.name, tostring(sections))
-    end
-  end
-
-  error("map-png: no known map-section table matches this executable; "
-    .. "refusing to touch the map\n  " .. table.concat(problems, "\n  "))
+  local native = require('mappng.native').resolve()
+  -- The native reader bounds this list to 150 records; zero terminates it.
+  local sections = M.readSectionTable(core, native.sections,
+    native.sections + 150 * M.SECTION_RECORD_SIZE)
+  local base, problem = deriveBase(sections)
+  assert(base and base == native.base, 'map-png: refusing to touch the map: '
+    .. (problem or 'native code and map sections disagree'))
+  return base, 'AoB-validated Crusader layout'
 end
 
 --- Address of MinimapViewState for a given TileMapState base.

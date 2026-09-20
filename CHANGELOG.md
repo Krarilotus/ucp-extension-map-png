@@ -8,7 +8,8 @@
 - Stage both PNGs before one shared import transaction. Preserve compatible
   objects and mask their occupied tiles. Remove conflicting connected structures
   through native teardown, without rubble or unit deletion.
-- Discover new native bindings through UCP's AoB infrastructure; executable-backed
+- Replace fixed-address picker/map discovery and the version allowlist with
+  shared UCP AoB bindings and independent map-layout checks. Executable-backed
   discovery tests cover normal and Extreme. Live acceptance is still pending.
 
 

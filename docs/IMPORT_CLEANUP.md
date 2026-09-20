@@ -1,7 +1,9 @@
 # Native import cleanup (live acceptance pending)
 
-Both height and terrain imports must remove placed objects and structures before
-applying the PNG. Show one localized warning below the PNG preview; do not repeat
+Both height and terrain imports preserve compatible footprints and remove only
+conflicting objects/connected structures before applying the PNG (0.2.0).
+See LINKED_REFRESH.md for the conservative conflict policy.
+Show one localized warning below the PNG preview; do not repeat
 it over the image. The warning must explicitly say that objects/structures will
 be removed, without an extra save-first sentence. Preserve units. A layer snapshot cannot restore
 entities and must not be presented as full-map undo.
@@ -12,7 +14,8 @@ Required sequence:
    into staging buffers. Invalid/missing PNGs must cause no map changes.
 2. Validate the native cleanup bindings and current supported editor context.
 3. After the user confirms the destructive import, perform native entity cleanup.
-4. Verify no placed-entity references remain before copying staged map layers.
+4. Verify selected footprints are cleared and retained objects/footprints remain
+   unchanged before copying staged map layers.
 5. Invalidate rendering/navigation through the existing map refresh integration.
 
 Do not zero entity arrays or use a whole-game reset. Preserve map type, scenario
@@ -49,7 +52,7 @@ uses a shared staged transaction for both PNG imports and a native adapter:
 decorations (entity types 10..15) for native deletion and clear their display flag.
 Eraser effects are left to the engine's normal lifecycle.
 
-Preflight checks supported build, signatures, record bounds and unit occupancy
+Preflight checks discovered layout, signatures, record bounds and unit occupancy
 before deleting anything. Units occupying wall/decorative tiles cause refusal.
 Postconditions check active records, footprints and unit logical states before
 committing staged PNG data. Building teardown may adjust workers' building-related

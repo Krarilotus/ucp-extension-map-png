@@ -65,6 +65,8 @@ class TestTilemapSynthetic(unittest.TestCase):
         self.tilemap = lua_harness.load(self.lua, "mappng.map.tilemap")
 
     def memory(self, base, table_start, broken=None):
+        self.lua.globals().discovered = self.lua.table(base=base, sections=table_start)
+        self.lua.execute("package.loaded['mappng.native']={resolve=function() return discovered end}")
         blob = {}
 
         def record(address, size, section_id):
@@ -88,13 +90,13 @@ class TestTilemapSynthetic(unittest.TestCase):
         core = fake_core(self.lua, self.memory(CRUSADER_BASE, 0x00B92A58))
         base, build = self.tilemap.resolveBase(core)
         self.assertEqual(base, CRUSADER_BASE)
-        self.assertEqual(build, "Crusader 1.41")
+        self.assertEqual(build, "AoB-validated Crusader layout")
 
     def test_resolves_extreme_through_its_own_table(self):
         core = fake_core(self.lua, self.memory(EXTREME_BASE, 0x00B92BE8 + 0x700))
         base, build = self.tilemap.resolveBase(core)
         self.assertEqual(base, EXTREME_BASE)
-        self.assertEqual(build, "Crusader Extreme 1.41.1-E")
+        self.assertEqual(build, "AoB-validated Crusader layout")
 
     def test_refuses_an_inconsistent_layout(self):
         core = fake_core(self.lua, self.memory(CRUSADER_BASE, 0x00B92A58, broken=1037))
@@ -114,13 +116,14 @@ class TestTilemapAgainstBinaries(unittest.TestCase):
         self.tilemap = lua_harness.load(self.lua, "mappng.map.tilemap")
 
     def resolve(self, exe):
-        image = PEImage(GAME_DIR / exe)
-        return self.tilemap.resolveBase(fake_core(self.lua, image.read))
+        from test_native_discovery import NativeDiscovery
+        lua, _ = NativeDiscovery().resolve(exe)
+        return lua_harness.load(lua, 'mappng.map.tilemap').resolveBase(lua.globals().core)
 
     def test_crusader_matches_openshc(self):
         base, build = self.resolve("Stronghold Crusader.exe")
         self.assertEqual(base, CRUSADER_BASE)
-        self.assertEqual(build, "Crusader 1.41")
+        self.assertEqual(build, "AoB-validated Crusader layout")
 
     def test_extreme_resolves_to_its_relocated_base(self):
         base, _ = self.resolve("Stronghold_Crusader_Extreme.exe")
