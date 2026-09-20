@@ -17,6 +17,7 @@ local screens = require("mappng.ui.screens")
 local icons = require("mappng.ui.icons")
 local buttons = require("mappng.ui.buttons")
 local filedialog = require("mappng.ui.filedialog")
+local lifecycle = require('mappng.lifecycle')
 
 local mappng = {}
 
@@ -33,6 +34,11 @@ end
 
 --- Runs one of the four actions: ask for a name, then do the work.
 local function onClick(mode, what)
+  if mode=='refresh' then
+    local ok,err=pcall(lifecycle.refresh)
+    if not ok then log(ERROR,'map-png: refresh failed: '..tostring(err)) end
+    return
+  end
   filedialog.pick(mode, what, currentMapName(), function(name)
     if name == nil then
       return
@@ -41,6 +47,7 @@ local function onClick(mode, what)
     local ok, result = pcall(actions.run, mode, what, name)
 
     if ok then
+      if mode=='import' then lifecycle.link(what,name) end
       log(INFO, string.format("map-png: %s %s -> %s", mode, what, tostring(result)))
     else
       log(ERROR, string.format("map-png: %s %s failed: %s", mode, what, tostring(result)))
@@ -88,6 +95,7 @@ function mappng:enable(config)
 
     local ui = modules.ui:access()
     if layoutKnown then filedialog.initialize(ffi, ui, state.png) end
+    lifecycle.initialize(ffi,actions.folder())
     local game = ui.game
     local added = buttons.install(ffi, game, onClick)
     if added == 0 then
@@ -97,6 +105,7 @@ function mappng:enable(config)
 end
 
 function mappng:disable()
+  lifecycle.disable()
   buttons.disable()
   filedialog.cancel()
   icons.unload()

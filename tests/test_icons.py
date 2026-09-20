@@ -47,8 +47,8 @@ class TestIcons(unittest.TestCase):
         icons = lua_harness.load(lua, "mappng.ui.icons")
 
         keys = [action["key"] for action in screens.ACTIONS.values()]
-        self.assertEqual(len(keys), 4)
-        self.assertEqual(sorted(keys), sorted(n[:-4] for n in inspect_icons.EXPECTED))
+        self.assertEqual(len(keys), 5)
+        self.assertEqual(sorted(keys), sorted([n[:-4] for n in inspect_icons.EXPECTED]+['refresh_import']))
 
         for key in keys:
             self.assertIsNotNone(icons.ICON_FILES[key], key)

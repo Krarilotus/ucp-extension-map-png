@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.0 — release candidate
+
+- Refresh linked height/terrain PNGs with a fifth native minimap button; show
+  linked filenames beside it. Links persist in a separate JSON sidecar, never
+  in the game's map format. Missing files invalidate their links.
+- Stage both PNGs before one shared import transaction. Preserve compatible
+  objects and mask their occupied tiles. Remove conflicting connected structures
+  through native teardown, without rubble or unit deletion.
+- Discover new native bindings through UCP's AoB infrastructure; executable-backed
+  discovery tests cover normal and Extreme. Live acceptance is still pending.
+
+
 ## 0.1.2 — 2026-09-11
 
 - Add approved GPLv3 code license, corresponding-source information and retained
