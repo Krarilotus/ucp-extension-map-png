@@ -2,6 +2,16 @@
 -- fallback. Layout offsets remain a documented Crusader 1.41 ABI contract.
 local M = {}
 M.patterns = {
+  preview = '83 3D I(? ? ? ?) FF 0F 85 ? ? ? ? 39 2D I(? ? ? ?) 53 8B 1D ? ? ? ? 75 ? 81 C3 90 01 00 00 EB ? 81 C3 58 02 00 00 8B 35 ? ? ? ? 8B 3D I(? ? ? ?) 81 C6 F0 00 00 00',
+  sections = '? ? ? ? 00 00 00 00 20 74 02 00 01 00 E9 03 ? ? ? ? 00 00 00 00 20 74 02 00 01 00 09 04 ? ? ? ? 00 00 00 00 20 74 02 00 01 00 EA 03',
+  banner = '83 44 24 08 08 53 8B 5C 24 08 55 8B 6C 24 14 83 C3 08 83 ED 10 56 33 C0 57',
+  inputRender = 'A1 ? ? ? ? 8B 0D ? ? ? ? 8B 15 ? ? ? ? 56 57 6A 05 03 C8 51 8B 0D ? ? ? ? 03 D1 52 50 51 B9 ? ? ? ? E8 ? ? ? ? B9 ? ? ? ?',
+  rowBackground = '8B 0D ? ? ? ? 56 57 0F BE 7C 24 10 83 E7 01 03 FF 83 CF 45 83 7C 24 0C 00',
+  scrollRender = '8B 44 24 10 8B 4C 24 14 8B 54 24 08 6A 00 50 A1 ? ? ? ? 51 8B 0D ? ? ? ? 52 8B 15 ? ? ? ? 50 51 52 B9 ? ? ? ? E8 ? ? ? ? C3',
+  arrowRender = '83 7C 24 04 00 B8 51 00 00 00 75 05 B8 55 00 00 00 83 3D ? ? ? ? 00 74 03 83 C0 01',
+  trimText = '8B 44 24 08 8B 54 24 04 50 8B 44 24 10 8D 44 C0 12 52 8D 0C 81 E8 ? ? ? ? C2 0C 00',
+  activate = '56 8B F1 83 7E 5C 00 75 22 A1 I(? ? ? ?) 85 C0 A3 I(? ? ? ?) C7 05 I(? ? ? ?) 01 00 00 00',
+  pop = '8B 41 64 8B 51 68 56 8B 71 60 89 41 60 8B 41 6C 89 51 64 8B 51 70 89 41 68 33 C0',
   building = '55 56 8B 74 24 0C 8B C6 69 C0 2C 03 00 00 57 8B F9 8D 14 38 66 C7 82 E4 00 00 00 03 00 83 3D I(? ? ? ?) 00',
   tree = '56 57 8B 7C 24 0C 8B F1 57 B9 I(? ? ? ?) @(E8 ? ? ? ?) 8B C7 69 C0 9C 00 00 00',
   rock = '56 8B 74 24 08 57 8B F9 56 B9 I(? ? ? ?) @(E8 ? ? ? ?) C1 E6 05',
@@ -27,7 +37,12 @@ function M.resolve()
     found[name] = pattern:find('(',1,true) and {utils.AOBExtract(pattern)} or {core.AOBScan(pattern)}
     assert(found[name][1], 'map-png: native binding unavailable: '..name)
   end
-  local r = {functions={}, hooks={}}
+  local r = {functions={}, hooks={},ui={}}
+  r.sections=found.sections[1]
+  r.preview={previewSuppressed=found.preview[2],multiplayerLayout=found.preview[3],mapSize=found.preview[4]}
+  for _,name in ipairs({'banner','inputRender','rowBackground','scrollRender','arrowRender','trimText','activate','pop'}) do r.ui[name]=found[name][1] end
+  r.input=found.activate[2]; r.menuInput=found.activate[3]-0x88
+  assert(found.activate[4]==r.input+12,'map-png: unknown text input layout')
   for _, kind in ipairs({'building','tree','rock','wall'}) do r.functions[kind]=found[kind][1] end
   r.base=found.tree[2]
   assert(r.base==found.rock[2], 'map-png: inconsistent native map bases')

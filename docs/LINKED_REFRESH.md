@@ -53,8 +53,10 @@ footprint adjacency and ownership, not “all buildings belonging to this player
 
 ## Native evidence and release gates
 
-Crusader 1.41 only, as in 0.1.2. OpenSHC supplies names/types; verify executable
-instructions before installing hooks or calling addresses.
+UCP's shared AoB infrastructure discovers bindings on normal and Extreme fixtures.
+No executable-name/version allowlist or fixed-address fallback remains. OpenSHC
+supplies names/types; layout offsets still need validation. Addresses below are
+normal 1.41 research references, not the runtime discovery mechanism.
 
 - `0x421990`: destroy building and linked duplicates; native group field +0x2A8.
 - `TileMapState + 0x5549A4` (`0x1FE7BAC`): native no-rubble destruction switch;

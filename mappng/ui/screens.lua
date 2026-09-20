@@ -65,12 +65,8 @@ M.PREVIEW = {
   defaultSize = 400,
 }
 
---- Crusader 1.41 only. Read by `currentLayout` when `setGlobalsAvailable(true)`.
-M.GLOBALS = {
-  previewSuppressed = 0x01FE7CBC, -- the preview is drawn only while this is -1
-  multiplayerLayout = 0x01FE9244, -- nonzero: multiplayer layout, centre x 600
-  mapSize = 0x01FE7C14,           -- width of the square map; 0 means 400
-}
+--- Discovered from the native preview renderer by mappng.native.
+M.GLOBALS = {}
 
 M.SCREENS = {
   {
@@ -84,10 +80,10 @@ M.SCREENS = {
 
 local state = { globalsAvailable = false }
 
---- The globals above are only valid on the build they were read from.
---- init.lua enables them once tilemap.lua has confirmed Crusader 1.41.
-function M.setGlobalsAvailable(available)
-  state.globalsAvailable = available and true or false
+--- Only enable after tilemap/native discovery validates the shared layout.
+function M.configure(globals)
+  state.globalsAvailable = globals ~= nil
+  M.GLOBALS = globals or {}
 end
 
 local function readInteger(address)

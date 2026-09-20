@@ -1,11 +1,13 @@
 # Native map-tool integration
 
-This implementation targets normal Crusader 1.41. Offline tests are regression
+Bindings use UCP AoB discovery, checked against normal and Extreme. Offline tests are regression
 checks, not proof that native rendering, keyboard input or map transitions work.
 
 ## Boundaries
 
-`screens.lua` owns verified menu geometry and the four action identities.
+`native.lua` owns cached native bindings using UCP's `utils.AOBExtract` and
+`core.AOBScan`; there is no private scanner or fixed-address fallback.
+`screens.lua` owns verified menu geometry and the five action identities.
 `controls.lua` owns the native item schema and drawing-surface restoration.
 `buttons.lua` registers anchored callbacks once and dispatches actions.
 `picker.lua` owns file selection and overwrite confirmation without game memory.
@@ -13,6 +15,27 @@ checks, not proof that native rendering, keyboard input or map transitions work.
 `pickerlayout.lua` is the shared geometry contract for the list and scrollbar.
 `preview.lua` converts image pixels to TGX without touching map memory.
 `actions.lua` alone dispatches map-layer conversions; PNG previews do not import.
+
+## UCP discovery contract
+
+Resolve and validate every native binding before installing controls/hooks.
+Use the framework's cached scanner and capture helpers; do not gate a matching
+ABI on a game name/version string. Plain patterns use `core.AOBScan` because
+3.0.7's `AOBExtract` formatter requires a capture. Captured addresses and relative
+calls use `utils.AOBExtract`. Wildcard relocated operands, not meaningful layout
+constants. Tests require exactly one match per signature in each fixture.
+
+The map-section table and native map base are discovered independently; four
+section sizes/offsets must agree before access. Preview globals come from the
+preview renderer's operands. Record strides/field offsets remain ABI contracts,
+not universally portable facts. Missing signatures or inconsistent layouts fail
+closed; an AoB match alone is not proof that every unknown version is supported.
+
+Use `core.detourCode` for lifecycle observation. Each displaced span must contain
+whole non-branching instructions; binary tests check this. Catch Lua errors at
+native callbacks, preserve registers and anchor FFI callbacks. No custom patcher,
+alternate JSON codec, parallel import pipeline or replacement button skin.
+Historical addresses below identify research sites, not runtime bindings.
 `paths.lua` confines filenames to the mapping directory and handles Windows Unicode.
 `i18n.lua` selects concise action labels from the installed game's text language.
 
