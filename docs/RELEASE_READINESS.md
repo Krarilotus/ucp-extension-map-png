@@ -1,4 +1,17 @@
-# 0.1.2 release handoff
+# 0.2.0 release candidate
+
+Refresh, per-map sidecar links, selective cleanup and updated localized warnings
+are implemented. 139 automated tests pass at the initial integration checkpoint;
+native AoB discovery is checked with UCP's real helper against normal and Extreme
+executables. The existing UI still requires its UCP 1.0.1 dependency.
+
+Live acceptance remains open: computer-use's native pipe failed twice on
+2026-09-20. Do not merge the Store PR or call this build live-tested until map
+load/save/restart links, missing-file refresh, populated maps, connected keeps,
+farms, units, rubble and both menu layouts pass. The current store screenshot is
+from 0.1.x and shows the original four controls, not the new refresh row.
+
+## Historical 0.1.2 handoff
 
 Completed: unique module/package version; action/folder/back order; nine concise
 store descriptions with localized warning and image alt text; one real editor

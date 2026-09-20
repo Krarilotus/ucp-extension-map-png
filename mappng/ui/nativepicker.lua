@@ -38,16 +38,7 @@ local function text(value, x, y, size)
 end
 
 local function boundedText(value, x, y, width)
-  -- Native filename truncation; never shorten the model's actual path.
-  local key = tostring(width) .. ":" .. value
-  local buffer = state.textCache[key]
-  if not buffer then
-    buffer = state.ffi.new("char[?]", #value + 1)
-    state.ffi.copy(buffer, value, #value)
-    state.trimText(state.game.Rendering.textManager, buffer, width, 18)
-    state.textCache[key] = buffer
-  end
-  text(buffer, x, y)
+  controls.boundedText(state.ffi,state.game.Rendering,state.trimText,state.textCache,value,x,y,width)
 end
 
 local function actionText()

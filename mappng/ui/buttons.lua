@@ -44,6 +44,8 @@ local screens = require("mappng.ui.screens")
 local icons = require("mappng.ui.icons")
 local filedialog = require("mappng.ui.filedialog")
 local controls = require("mappng.ui.controls")
+local links = require('mappng.lifecycle')
+local paths = require('mappng.paths')
 
 local M = {}
 
@@ -140,8 +142,9 @@ local function makeRender(ffi, game, action)
       -- Vanilla button chrome uses ButtonState, including its interaction
       -- state. Only the picture inside is ours (no custom button skin).
       rendering.renderButtonBackground(rendering.alphaAndButtonSurface, 0, -1)
-      local x = button.x + ((button.width - screens.ICON_WIDTH) // 2)
-      local y = button.y + ((button.height - screens.ICON_HEIGHT) // 2)
+      local size=icons.size(action.key)
+      local x = button.x + ((button.width - size.width) // 2)
+      local y = button.y + ((button.height - size.height) // 2)
       if icons.available() then
         trace(key, "drawing supplied PNG artwork")
         icons.draw(action.key, rendering, x, y)
@@ -149,6 +152,17 @@ local function makeRender(ffi, game, action)
         trace(key, "calling renderTextToScreenConst")
         rendering.renderTextToScreenConst(rendering.textManager,
           label, x, y, 0, 0xB8EEFB, 0x0E, false, 0)
+      end
+      if action.mode=='refresh' then
+        local names=links.names()
+        local key=(names.height or '')..'\0'..(names.terrain or '')
+        if key~=state.namesKey then state.namesKey=key; state.textCache={} end
+        for line,kind in ipairs({'height','terrain'}) do
+          if names[kind] then
+            controls.boundedText(ffi,rendering,state.trimText,state.textCache,
+              paths.toGameText(names[kind]),button.x-192,button.y+(line-1)*16,184)
+          end
+        end
       end
     end)
 
@@ -193,6 +207,9 @@ function M.install(ffi, game, onClick)
   if #state.items > 0 then return #state.items end
   local Menu = modules.ui:access().api.ui.Menu
   local layout = screens.currentLayout()
+  state.trimText=ffi.cast('void (__thiscall *)(void *,char *,int,int)',
+    core.AOBScan('8B 44 24 08 8B 54 24 04 50 8B 44 24 10 8D 44 C0 12 52 8D 0C 81 E8 ? ? ? ? C2 0C 00'))
+  state.textCache={}
   state.layoutKey = layout.key
 
   for _, screen in ipairs(screens.SCREENS) do
@@ -274,7 +291,7 @@ function M.install(ffi, game, onClick)
 
       local first = screens.iconPosition(screen, 1, layout)
       log(INFO, string.format(
-        "map-png: added 4 buttons to menu %d (%s), first at menu-local (%d,%d), layout %s from %s",
+        "map-png: added 5 buttons to menu %d (%s), first at menu-local (%d,%d), layout %s from %s",
         screen.menuID, screen.name, first.x, first.y, layout.key, layout.source))
     end)
 
