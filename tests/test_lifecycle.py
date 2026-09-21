@@ -25,12 +25,19 @@ class Lifecycle(unittest.TestCase):
           local sites={newMap=1,loadBegin=2,loadDone=3,saveBegin=4,saveDone=5}
           package.loaded['mappng.native']={resolve=function() return {hooks=sites,resource=10,resourceName=11} end}
           package.loaded['mappng.actions']={importLinked=function(names) imported=names end}
-          core={detourCode=function(callback,address,span) callbacks[address]=callback; installs=installs+1 end}
-          ffi={cast=function(kind,value) if value==11 then return function() return filename end end; return value end,
-            string=function(value) return value end}
+          core={detourCode=function(callback,address,span) callbacks[address]=callback; installs=installs+1 end,
+            readByte=function(address)
+              assert(address>=10000 and address<=11000)
+              if unterminated then return 65 end
+              local offset=address-10000+1
+              assert(offset<=#filename+1,'read past filename terminator')
+              return filename:byte(offset) or 0
+            end}
+          ffi={cast=function() error('must not re-enter native code') end,
+            string=function() error('must not read an unbounded native string') end}
           lifecycle=require('mappng.lifecycle'); lifecycle.initialize(ffi,'mapping')
           function event(name)
-            local r={eax=123}; assert(callbacks[sites[name]](r)==r)
+            local r={EAX=10000}; assert(callbacks[sites[name]](r)==r and r.EAX==10000)
           end
           function load(name) filename=name; event('loadBegin'); event('loadDone') end
           function save(name) filename=name; event('saveBegin'); event('saveDone') end
@@ -91,3 +98,21 @@ class Lifecycle(unittest.TestCase):
           lifecycle.initialize(ffi,'mapping')
           assert(installs==5 and not next(lifecycle.names()))
         ''')
+
+    def test_savegames_detach_without_map_path_processing(self):
+        self.lua.execute('''
+          lifecycle.link('height','h.png'); save('one.map')
+          identityFail=true; load('one.sav'); save('two.sav')
+          assert(not next(lifecycle.names()) and #warnings==0)
+          identityFail=false; load('one.map'); assert(lifecycle.names().height=='h.png')
+        ''')
+
+    def test_unterminated_path_detaches_without_native_unwind(self):
+        self.lua.execute('''
+          lifecycle.link('height','h.png'); save('one.map')
+          unterminated=true; event('loadBegin'); event('loadDone')
+          assert(not next(lifecycle.names()) and #warnings==1)
+        ''')
+
+    def test_longest_native_path_is_bounded_and_registers_unchanged(self):
+        self.lua.execute("load(string.rep('a',996)..'.map'); assert(#warnings==0)")
