@@ -22,13 +22,13 @@ M.patterns = {
   shape = '8B 94 00 I(? ? ? ?) 03 C0 89 91 8C 49 55 00 8B 90 ? ? ? ? 89 91 90 49 55 00',
   units = 'C7 05 I(? ? ? ?) I(? ? ? ?) C7 05 ? ? ? ? ? ? ? ? C7 05 ? ? ? ? ? ? ? ? C7 86 70 F0 53 00',
   -- map-extensions owns the read/write entry hooks and allocation sizes.
-  -- Observe inside the original body, after its trampoline rejoins execution.
-  loadBegin = '89 44 24 14 89 5E 20 E8 ? ? ? ? 83 C4 04 3B C3 89 46 10',
+  -- Observe the filename already returned to the native file-open caller in
+  -- EAX. Do not re-enter the (potentially hooked) resource getter from Lua.
+  loadBegin = '53 68 00 80 00 00 50 E8 ? ? ? ? 8B F8 83 CD FF 83 C4 0C 3B FD',
   loadDone = '89 5E 10 8B 15 ? ? ? ? 83 C4 08 39 1D ? ? ? ? 89 1D ? ? ? ?',
-  saveBegin = '89 44 24 1C 89 7E 20 89 6C 24 18 89 7C 24 14 89 7E 0C 89 7E 28 89 3B',
+  saveBegin = '68 80 01 00 00 68 01 83 00 00 50 E8 ? ? ? ? 8B F8 83 C4 0C 83 FF FF',
   saveDone = '83 C4 30 C7 46 10 00 00 00 00 5F 5E 5D 5B 83 C4 10 C2 04 00',
   newMap = '53 55 56 8B F1 57 33 FF 89 BE 1C 29 55 00 89 BE 20 29 55 00',
-  resource = 'B9 I(? ? ? ?) @(E8 ? ? ? ?) 53 68 00 80 00 00 50 E8 ? ? ? ? 8B F8 83 CD FF',
 }
 local cached
 function M.resolve()
@@ -63,7 +63,6 @@ function M.resolve()
   r.unitCapacity=found.units[3]
   assert(r.unitCapacity>0 and r.unitCapacity<=10000,'map-png: unknown unit capacity')
   r.rowY, r.rows, r.shapes=found.wall[2], found.wall[3], found.shape[2]
-  r.resource, r.resourceName=found.resource[2],found.resource[3]
   for _, name in ipairs({'loadBegin','loadDone','saveBegin','saveDone','newMap'}) do r.hooks[name]=found[name][1] end
   cached=r
   return r

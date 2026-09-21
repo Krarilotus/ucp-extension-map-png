@@ -2,6 +2,11 @@
 
 ## 0.2.1 — test candidate
 
+Handoff-branch follow-up (not in the released ZIP): observe the native file-open filename in
+EAX instead of calling the resource getter again from a load/save detour. Bound
+filename reads and skip map-link processing for ordinary savegames. Existing-map
+and savegame crash reports remain an open live acceptance gate.
+
 - Fix missing controls with map-extensions: observe map load/save inside the
   original functions, away from shared entry hooks and allocation patches.
   Discovery regression tests cover patched normal and Extreme executables.

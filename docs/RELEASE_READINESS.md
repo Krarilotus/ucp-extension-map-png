@@ -1,5 +1,24 @@
 # 0.2.1 test candidate
 
+## Load regression — handoff-branch repair, not released
+
+Monsterfish_ reports crashes loading existing editor maps and ordinary saves,
+while new maps and PNG structure/tree handling work. Treat the published
+0.2.1-rc.1 candidate as failing acceptance, not merely awaiting verification.
+The handoff-branch repair removes the extra native filename-getter call from the load
+and save detours, observes EAX after the game's own call, bounds the string copy,
+and bypasses map identity work for .sav files. Root-cause confirmation still
+requires a live reproduction and comparison; offline tests alone cannot prove
+that this resolves the reported crash.
+
+Per the maintainer: retain module version 0.2.1, do not update the PR or downloads
+until repeated existing-map/savegame load, save/reload and PNG refresh tests pass
+on the PC. Do not overwrite the published tag or present this source candidate as
+the currently downloadable build. See GAMERGRILL_HANDOFF.md for independent
+checkout/build/live-test instructions; no access to the previous PC is required.
+
+## Previous candidate coverage
+
 Refresh, per-map sidecar links, selective cleanup and updated localized warnings
 are implemented. Automated tests cover the UCP-contract refactor;
 native AoB discovery is checked with UCP's real helper against normal and Extreme

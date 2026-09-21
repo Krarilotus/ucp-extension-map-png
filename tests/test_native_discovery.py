@@ -52,8 +52,8 @@ class NativeDiscovery(unittest.TestCase):
         self.assertEqual(r.buildings,0xF98520)
         self.assertEqual(r.landscape,0xF2CC38)
         self.assertEqual(r.units,0x1387F38)
-        self.assertEqual(r.hooks.loadBegin,0x474A31)
-        self.assertEqual(r.hooks.saveBegin,0x474498)
+        self.assertEqual(r.hooks.loadBegin,0x474A70)
+        self.assertEqual(r.hooks.saveBegin,0x474677)
         self.assertEqual(r.hooks.saveDone,0x47491E)
         self.assertEqual(r.sections,0xB92A58)
         self.assertEqual(r.ui.scrollRender,0x492C60)
@@ -98,11 +98,31 @@ class NativeDiscovery(unittest.TestCase):
         for filename in ('Stronghold Crusader.exe','Stronghold_Crusader_Extreme.exe'):
             _, bindings=self.resolve(filename)
             pe=PEImage(GAME_DIR/filename)
-            for name,span in dict(newMap=5,loadBegin=7,loadDone=9,saveBegin=7,saveDone=10).items():
+            for name,span in dict(newMap=5,loadBegin=6,loadDone=9,saveBegin=5,saveDone=10).items():
                 address=bindings.hooks[name]
                 instructions=list(decoder.disasm(pe.read(address,span),address))
                 self.assertEqual(sum(i.size for i in instructions),span,(filename,name))
                 self.assertTrue(all(not i.mnemonic.startswith(('j','call','ret','loop')) for i in instructions))
+
+    def test_filename_observation_sites_follow_same_native_getter(self):
+        for filename in ('Stronghold Crusader.exe','Stronghold_Crusader_Extreme.exe'):
+            _, bindings=self.resolve(filename)
+            pe=PEImage(GAME_DIR/filename)
+            targets=[]
+            receivers=[]
+            for name in ('loadBegin','saveBegin'):
+                site=bindings.hooks[name]
+                # MOV ECX, resource; CALL getter; observation point. The native
+                # caller has already resolved EAX; no second getter call needed.
+                before=pe.read(site-10,10)
+                self.assertEqual(before[0],0xB9)
+                self.assertEqual(before[5],0xE8)
+                receivers.append(struct.unpack('<I',before[1:5])[0])
+                targets.append(site+struct.unpack('<i',before[6:10])[0])
+            self.assertEqual(receivers[0],receivers[1])
+            self.assertEqual(targets[0],targets[1])
+            self.assertEqual(pe.read(targets[0],20),bytes.fromhex(
+                '8B 81 C4 0B 00 00 69 C0 E9 03 00 00 8D 84 08 E0 AE 07 00 C3'))
 
     def test_map_extensions_entry_hooks_and_allocation_patch_do_not_hide_buttons(self):
         for filename in ('Stronghold Crusader.exe','Stronghold_Crusader_Extreme.exe'):
@@ -110,10 +130,20 @@ class NativeDiscovery(unittest.TestCase):
             read,write=original.hooks.loadBegin,original.hooks.saveBegin
             # map-extensions hooks five entry bytes. Older recorder variants can
             # hook ten. Neither owns these interior observation sites.
-            patches={read-17:b'\xe9\0\0\0\0'+b'\x90'*5,
-                     write-24:b'\xe9\0\0\0\0'+b'\x90'*5,
-                     read-4:struct.pack('<I',0x1000000),
-                     write-4:struct.pack('<I',0x1000000)}
+            pe=PEImage(GAME_DIR/filename)
+            def locate(data):
+                matches=[va+offset for va,_,rawsize,raw in pe.sections
+                         for offset in [pe.data[raw:raw+rawsize].find(data)] if offset>=0]
+                self.assertEqual(len(matches),1)
+                return matches[0]
+            read_entry=locate(bytes.fromhex('83 EC 0C 53 56 8B F1 8B 46 20'))
+            write_entry=locate(bytes.fromhex('83 EC 10 53 55 56 8B F1 8B 46 20'))
+            read_malloc=locate(bytes.fromhex('68 80 8D 5B 00 89 44 24 14'))+1
+            write_malloc=locate(bytes.fromhex('68 80 8D 5B 00 89 44 24 1C'))+1
+            patches={read_entry:b'\xe9\0\0\0\0'+b'\x90'*5,
+                     write_entry:b'\xe9\0\0\0\0'+b'\x90'*5,
+                     read_malloc:struct.pack('<I',0x1000000),
+                     write_malloc:struct.pack('<I',0x1000000)}
             _, resolved=self.resolve(filename,patches)
             self.assertEqual(resolved.hooks.loadBegin,read)
             self.assertEqual(resolved.hooks.saveBegin,write)

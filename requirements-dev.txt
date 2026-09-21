@@ -1,0 +1,5 @@
+lupa==2.8
+Pillow==12.3.0
+PyYAML==6.0.3
+capstone==5.0.9
+pefile==2024.8.26

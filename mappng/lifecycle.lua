@@ -20,27 +20,41 @@ function M.initialize(ffi,folder)
     local ok,err=pcall(function() state.links.restore(json:decode(paths.readBinary(sidecar,1024*1024))) end)
     if not ok then log(WARNING,'map-png: ignored invalid link sidecar: '..tostring(err)) end
   end
-  local getName=ffi.cast('char * (__thiscall *)(void *)',bindings.resourceName)
-  local function identity()
-    local name=ffi.string(getName(ffi.cast('void *',bindings.resource)))
+  local function identity(registers)
+    -- The game already resolved the actual filename, including other modules'
+    -- overrides. Calling its getter again from a detour is unnecessary native
+    -- re-entry. Copy only through the terminator, within the native 1001-byte
+    -- path limit; never perform an unbounded ffi.string(pointer) read.
+    local address=registers.EAX
+    assert(math.type(address)=='integer' and address>0,'map-png: invalid native filename pointer')
+    local bytes,terminated={},false
+    for offset=0,1000 do
+      local byte=core.readByte(address+offset)&0xFF
+      if byte==0 then terminated=true; break end
+      bytes[#bytes+1]=string.char(byte)
+    end
+    assert(terminated,'map-png: unterminated native filename')
+    local name=table.concat(bytes)
+    -- Ordinary savegames must not enter map identity/sidecar processing.
+    if not name:lower():match('%.map$') then return nil end
     return paths.mapIdentity(paths.fromGameText(name))
   end
   local callbacks={
     newMap=function() state.pendingLoad=nil; state.pendingSave=nil; state.links.open(nil) end,
-    loadBegin=function() state.pendingLoad=identity(); state.links.open(nil) end,
+    loadBegin=function(registers) state.pendingLoad=identity(registers); state.links.open(nil) end,
     loadDone=function()
       -- This site follows the section decoding loop, not the allocation/open
       -- failure returns. Header-only preview loading uses a different function.
       state.links.open(state.pendingLoad); state.pendingLoad=nil
     end,
-    saveBegin=function() state.pendingSave=identity() end,
+    saveBegin=function(registers) state.pendingSave=identity(registers) end,
     saveDone=function()
       -- Normal write/close path, not the allocation/open failure returns.
       if state.pendingSave then state.links.saved(state.pendingSave) end
       state.pendingSave=nil
     end,
   }
-  local sizes={newMap=5,loadBegin=7,loadDone=9,saveBegin=7,saveDone=10}
+  local sizes={newMap=5,loadBegin=6,loadDone=9,saveBegin=5,saveDone=10}
   -- Resolve all sites before installing any hook. The spans contain complete
   -- non-branching instructions: no relative calls/jumps need relocation.
   for _,name in ipairs({'newMap','loadBegin','loadDone','saveBegin','saveDone'}) do
