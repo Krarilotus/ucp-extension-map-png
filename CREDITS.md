@@ -17,7 +17,9 @@ research remains with their authors; this module does not claim their work.
   These are system components, not bundled software.
 - **Firefly Studios** — Stronghold Crusader and its original interface artwork,
   fonts, menu implementation and game assets. The extension invokes the installed
-  game's routines; it does not distribute those game assets.
+  game's routines; it does not distribute standalone game assets. The store's
+  documentation preview is an unmodified user-supplied gameplay screenshot
+  showing that original interface, not a replacement game asset.
 
 ## Adapted code, data and research references
 
@@ -48,12 +50,18 @@ confirmed by Krarilotus). The creator-v2 PNGs were supplied by Krarilotus in
 `ucp modding on streoids (2).zip`. Original pixels are preserved in
 `resources/icons/creator-v2/`; runtime versions crop transparent padding, scale
 2x by nearest-neighbor and threshold alpha for the native TGX format.
+The separately supplied refresh illustration is preserved as
+`resources/icons/creator-v2/refresh_import.png` and receives the same exact-pixel
+treatment for the fifth button; no AI redraw is used.
 
 Contact **Monsterfish_** for an easy-to-edit offline Photoshop template.
 
-The artwork attribution is confirmed; its redistribution license has not yet
-been recorded. **Stable store release remains gated on confirming redistribution
-terms**, as well as resolving the sourcehold license-metadata
-conflict and recording the module's release license. Credits alone do not resolve
-those release checks. The user-requested test prerelease is not a release-ready,
-signed store build; these checks remain open in its draft store PR.
+On 2026-09-11, Krarilotus confirmed that Monsterfish_ is involved and that use of
+the supplied artwork in this extension's release is approved. This records the
+maintainer's confirmation of release permission, not a blanket license for other
+uses or a new license for Firefly's original assets. The artwork-permission gate
+for this release is resolved; attribution and the template contact remain.
+
+On 2026-09-11, Krarilotus relayed gynt's clarification that sourcehold is GPLv3
+and approved GPLv3 for Map PNG's code. See LICENSE and COPYING.md. The conflicting
+MIT package classifier is not relied upon. Both licensing gates are resolved.

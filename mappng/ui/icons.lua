@@ -12,7 +12,10 @@ M.ICON_FILES = {
   export_heightmap = "ucp/modules/map-png/resources/icons/isolated/export_heightmap.png",
   import_textures = "ucp/modules/map-png/resources/icons/isolated/import_textures.png",
   export_textures = "ucp/modules/map-png/resources/icons/isolated/export_textures.png",
+  refresh_import = "ucp/modules/map-png/resources/icons/isolated/refresh_import.png",
 }
+M.SIZES = {refresh_import={width=54,height=24}}
+function M.size(key) return M.SIZES[key] or {width=52,height=22} end
 
 --- Short labels used by the text fallback.
 M.LABELS = {
@@ -20,6 +23,7 @@ M.LABELS = {
   export_heightmap = "H out",
   import_textures = "T in",
   export_textures = "T out",
+  refresh_import = "R",
 }
 
 local state = { ready = false }
@@ -31,7 +35,7 @@ end
 --- Loads the native encodings of all four original PNGs.
 ---@return boolean ok
 function M.load()
-  artwork.load(M.ICON_FILES)
+  artwork.load(M.ICON_FILES,M.SIZES)
   state.ready = true
   return true
 end

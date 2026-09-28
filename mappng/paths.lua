@@ -34,6 +34,11 @@ void * __stdcall CreateFileW(const wchar_t *path, unsigned long access, unsigned
 unsigned long __stdcall GetFileSize(void *file, unsigned long *high);
 int __stdcall ReadFile(void *file, void *buffer, unsigned long size, unsigned long *read, void *overlapped);
 int __stdcall CloseHandle(void *handle);
+int __stdcall WriteFile(void *file, const void *buffer, unsigned long size, unsigned long *written, void *overlapped);
+int __stdcall FlushFileBuffers(void *file);
+int __stdcall MoveFileExW(const wchar_t *existing, const wchar_t *target, unsigned long flags);
+int __stdcall DeleteFileW(const wchar_t *path);
+unsigned long __stdcall GetFullPathNameW(const wchar_t *name, unsigned long capacity, wchar_t *result, void *part);
 void * __stdcall ShellExecuteW(void *window, const wchar_t *operation,
   const wchar_t *file, const wchar_t *parameters, const wchar_t *directory, int show);
 ]]
@@ -87,6 +92,38 @@ function M.readBinary(path, limit)
   kernel.CloseHandle(file)
   if not ok then error(result, 0) end
   return result
+end
+
+-- Sidecar writes use UTF-16 paths like PNG IO. Replace only after a complete,
+-- flushed write; an interrupted update leaves the previous index intact.
+function M.writeAtomic(path, bytes)
+  local ffi,kernel=state.ffi,state.kernel32
+  local temporary=path..'.tmp'
+  local file=kernel.CreateFileW(wide(temporary),0x40000000,0,nil,2,128,nil)
+  assert((ffi.tonumber or tonumber)(ffi.cast('unsigned long',file))~=0xFFFFFFFF,
+    'map-png: cannot write link sidecar')
+  local ok,err=pcall(function()
+    local written=ffi.new('unsigned long[1]')
+    assert(kernel.WriteFile(file,bytes,#bytes,written,nil)~=0 and written[0]==#bytes,
+      'map-png: incomplete link sidecar write')
+    assert(kernel.FlushFileBuffers(file)~=0,'map-png: cannot flush link sidecar')
+  end)
+  local closed=kernel.CloseHandle(file)~=0
+  if ok and closed then ok=kernel.MoveFileExW(wide(temporary),wide(path),9)~=0 end
+  if not ok or not closed then
+    kernel.DeleteFileW(wide(temporary))
+    error(err or 'map-png: cannot replace link sidecar',0)
+  end
+end
+
+function M.mapIdentity(path)
+  if not path or not path:lower():match('%.map$') then return nil end
+  local buffer=state.ffi.new('wchar_t[?]',520)
+  local size=state.kernel32.GetFullPathNameW(wide(path),520,buffer,nil)
+  assert(size>0 and size<520,'map-png: invalid map path')
+  local absolute=multibyte(buffer,65001):gsub('\\','/'):lower()
+  local prefix=M.gameDirectory():gsub('\\','/'):lower()..'/'
+  return absolute:sub(1,#prefix)==prefix and absolute:sub(#prefix+1) or absolute
 end
 
 --- One-time FFI setup.

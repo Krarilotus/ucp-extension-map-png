@@ -67,13 +67,20 @@ end
 
 -- One transaction boundary for both imports: decode/convert before touching
 -- live objects, native cleanup, verify, then commit only the selected layer.
-local function importImage(kind, image)
+local function importImages(images)
   local v = view()
-  local staged, buffers = stage(kind, v.layers)
-  local report
-  if kind == 'height' then height.import(staged, state.lookup, image, diamond.SIZE)
-  else report = terrain.import(staged, state.lookup, image, state.palette, diamond.SIZE) end
-  local remove = cleanup.prepare(core, state.ffi, v)
+  local staged, buffers, reports = {}, {}, {}
+  for _, kind in ipairs({'height', 'terrain'}) do
+    if images[kind] then
+      local layers, allocated = stage(kind, v.layers)
+      if kind == 'height' then height.import(layers, state.lookup, images[kind], diamond.SIZE)
+      else reports.terrain = terrain.import(layers, state.lookup, images[kind], state.palette, diamond.SIZE) end
+      for field, entry in pairs(allocated) do
+        buffers[field], staged[field] = entry, entry.data
+      end
+    end
+  end
+  local remove = cleanup.prepare(core, state.ffi, v, staged)
   -- A layer-only undo cannot resurrect deleted objects safely.
   state.snapshots = {}
   local ok, err = pcall(remove)
@@ -82,7 +89,30 @@ local function importImage(kind, image)
   end
   refresh.invalidate(v, { changedLayer = true })
   if not ok then error(err, 0) end
-  return report
+  return reports
+end
+
+-- Decode ALL linked images before converting or deleting anything. Refresh and
+-- the picker share this transaction; callers update links only after success.
+function M.importLinked(names)
+  assert(type(names) == 'table' and (names.height or names.terrain), 'map-png: no linked PNGs')
+  local images, resolved = {}, {}
+  for _, kind in ipairs({'height', 'terrain'}) do
+    if names[kind] then
+      local path = paths.resolve(state.folder, names[kind])
+      resolved[kind] = path
+      images[kind] = kind == 'height' and png.readGray(state.png, path) or png.readRGB(state.png, path)
+    end
+  end
+  local reports = importImages(images)
+  local report = reports.terrain
+  if report and report.unknownColours > 0 then
+    log(WARNING, string.format(
+      'map-png: %d pixel(s) in %s did not match any terrain colour and were left '
+      .. 'as empty ground; first at pixel %d, colour #%06X',
+      report.unknownColours, resolved.terrain, report.unknownSample.pixel, report.unknownSample.colour))
+  end
+  return resolved, reports
 end
 
 --- Compatibility API: destructive imports invalidate layer-only snapshots.
@@ -110,13 +140,8 @@ function M.exportHeight(name)
 end
 
 function M.importHeight(name, options)
-  options = options or {}
-  local path = paths.resolve(state.folder, name)
-  local image = png.readGray(state.png, path)
-
-  importImage('height', image)
-
-  return path
+  local resolved = M.importLinked({height=name})
+  return resolved.height
 end
 
 function M.exportTerrain(name)
@@ -127,21 +152,8 @@ function M.exportTerrain(name)
 end
 
 function M.importTerrain(name, options)
-  options = options or {}
-  local path = paths.resolve(state.folder, name)
-  local image = png.readRGB(state.png, path)
-
-  local report = importImage('terrain', image)
-
-  if report.unknownColours > 0 then
-    log(WARNING, string.format(
-      "map-png: %d pixel(s) in %s did not match any terrain colour and were left "
-      .. "as empty ground; first at pixel %d, colour #%06X",
-      report.unknownColours, path,
-      report.unknownSample.pixel, report.unknownSample.colour))
-  end
-
-  return path, report
+  local resolved, reports = M.importLinked({terrain=name})
+  return resolved.terrain, reports.terrain
 end
 
 --- Dispatch used by the buttons.

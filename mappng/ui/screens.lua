@@ -54,6 +54,7 @@ M.ACTIONS = {
   { key = "export_heightmap", mode = "export", what = "height" },
   { key = "import_textures", mode = "import", what = "terrain" },
   { key = "export_textures", mode = "export", what = "terrain" },
+  { key = "refresh_import", mode = "refresh", what = "linked" },
 }
 
 --- The preview's geometry in menu-local coordinates, from 0x0042E0D0.
@@ -64,12 +65,8 @@ M.PREVIEW = {
   defaultSize = 400,
 }
 
---- Crusader 1.41 only. Read by `currentLayout` when `setGlobalsAvailable(true)`.
-M.GLOBALS = {
-  previewSuppressed = 0x01FE7CBC, -- the preview is drawn only while this is -1
-  multiplayerLayout = 0x01FE9244, -- nonzero: multiplayer layout, centre x 600
-  mapSize = 0x01FE7C14,           -- width of the square map; 0 means 400
-}
+--- Discovered from the native preview renderer by mappng.native.
+M.GLOBALS = {}
 
 M.SCREENS = {
   {
@@ -83,10 +80,10 @@ M.SCREENS = {
 
 local state = { globalsAvailable = false }
 
---- The globals above are only valid on the build they were read from.
---- init.lua enables them once tilemap.lua has confirmed Crusader 1.41.
-function M.setGlobalsAvailable(available)
-  state.globalsAvailable = available and true or false
+--- Only enable after tilemap/native discovery validates the shared layout.
+function M.configure(globals)
+  state.globalsAvailable = globals ~= nil
+  M.GLOBALS = globals or {}
 end
 
 local function readInteger(address)
@@ -146,10 +143,12 @@ function M.iconPosition(screen, index, layout)
   local slot = M.BUTTON_WIDTH + M.BUTTON_GAP
   local left = layout.centreX - (M.ROW_WIDTH // 2)
   local offset = screen.offset or { x = 0, y = 0 }
+  local secondRow = index == 5
+  if secondRow then index = 4 end
 
   return {
     x = left + ((index - 1) * slot) + ((M.BUTTON_WIDTH - M.ICON_WIDTH) // 2) + offset.x,
-    y = layout.centreY + layout.half + M.ICON_GAP + offset.y,
+    y = layout.centreY + layout.half + M.ICON_GAP + offset.y + (secondRow and M.BUTTON_HEIGHT + M.BUTTON_GAP or 0),
   }
 end
 
