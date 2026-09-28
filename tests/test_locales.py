@@ -13,11 +13,13 @@ class TestLocales(unittest.TestCase):
     def test_all_gui_languages_have_all_used_keys_and_a_short_description(self):
         options = (ROOT / "options.yml").read_text(encoding="utf-8")
         keys = set(re.findall(r"{{([^}]+)}}", options))
+        tags = set(yaml.safe_load((ROOT / "definition.yml").read_text(encoding="utf-8"))["tags"])
         self.assertEqual({p.stem for p in (ROOT / "locale").glob("*.yml")}, LANGUAGES)
         for lang in LANGUAGES:
             text = (ROOT / "locale" / (lang + ".yml")).read_text(encoding="utf-8")
             locale = yaml.safe_load(text)
-            self.assertEqual(set(locale), keys, lang)
+            self.assertEqual({key for key in locale if not key.startswith("tags.")}, keys, lang)
+            self.assertEqual({key.removeprefix("tags.") for key in locale if key.startswith("tags.")}, tags, lang)
             self.assertTrue(all(isinstance(v, str) and v.strip() for v in locale.values()), lang)
             description = (ROOT / "locale" / ("description-" + lang + ".md")).read_text(encoding="utf-8")
             self.assertLess(len(description), 750, lang)
