@@ -26,7 +26,7 @@ function M.validate(bytes, width, height)
   assert(y == height and x == 0, "map-png: incomplete icon")
 end
 
-function M.load(files)
+function M.load(files,sizes)
   local ffi = modules.cffi:cffi()
   state.ffi = ffi
   -- SHC 1.41: 0x0044D3D0, verified from renderGM's interface-image branch.
@@ -44,18 +44,19 @@ function M.load(files)
     assert(file, err)
     local bytes = file:read("*all")
     file:close()
-    M.validate(bytes)
+    local size=(sizes or {})[key] or {width=screens.ICON_WIDTH,height=screens.ICON_HEIGHT}
+    M.validate(bytes,size.width,size.height)
     local buffer = ffi.new("unsigned char[?]", #bytes)
     ffi.copy(buffer, bytes, #bytes)
-    images[key] = { buffer = buffer, pixels = ffi.cast("unsigned short *", buffer) }
+    images[key] = { buffer = buffer, pixels = ffi.cast("unsigned short *", buffer), width=size.width,height=size.height }
   end
   state.images = images
-  log(INFO, "map-png: loaded all four supplied button images (" .. suffix .. ")")
+  log(INFO, "map-png: loaded supplied button images (" .. suffix .. ")")
 end
 
 function M.draw(key, rendering, x, y)
   local image = assert(state.images[key], "map-png: missing artwork: " .. key)
-  state.draw(rendering.textureRenderCore, x, y, screens.ICON_WIDTH, screens.ICON_HEIGHT, image.pixels)
+  state.draw(rendering.textureRenderCore, x, y, image.width, image.height, image.pixels)
 end
 
 function M.preview(image, maxWidth, maxHeight)

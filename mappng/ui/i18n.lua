@@ -22,17 +22,17 @@ local folderLabels = {en="Open folder", de="Ordner öffnen", fr="Ouvrir le dossi
   hu="Mappa megnyitása", tr="Klasörü aç", ch="打开文件夹", fa="باز کردن پوشه"}
 function M.folderLabel(code) return folderLabels[code or language] or folderLabels.en end
 local importWarnings = {
-  en={"Import deletes objects", "and structures."},
-  de={"Import löscht Objekte", "und Gebäude."},
-  fr={"L’import supprime les objets", "et bâtiments."},
-  es={"Importar elimina objetos", "y estructuras."},
-  it={"L’importazione elimina", "oggetti e strutture."},
-  pl={"Import usuwa obiekty", "i budowle."},
-  ru={"Импорт удаляет объекты", "и постройки."},
-  hu={"Az import törli az objektumokat", "és épületeket."},
-  tr={"İçe aktarma nesneleri", "ve yapıları siler."},
-  ch={"导入将删除物体和建筑。", ""},
-  fa={"ورود، اشیاء و ساختمان‌ها", "را حذف می‌کند."},
+  en={"Conflicting objects", "and structures are removed."},
+  de={"Störende Objekte und", "Gebäude werden entfernt."},
+  fr={"Objets et bâtiments", "incompatibles supprimés."},
+  es={"Se eliminan objetos y", "estructuras incompatibles."},
+  it={"Oggetti e strutture", "incompatibili rimossi."},
+  pl={"Kolidujące obiekty", "i budowle zostaną usunięte."},
+  ru={"Мешающие объекты", "и постройки удаляются."},
+  hu={"Az ütköző objektumok", "és épületek törlődnek."},
+  tr={"Çakışan nesneler ve", "yapılar kaldırılır."},
+  ch={"移除冲突的物体和建筑。", ""},
+  fa={"اشیاء و ساختمان‌های", "ناسازگار حذف می‌شوند."},
 }
 function M.importWarning(code) return importWarnings[code or language] or importWarnings.en end
 local operationFailures = {

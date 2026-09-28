@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.2.1 — test candidate
+
+Handoff-branch follow-up (not in the released ZIP): observe the native file-open filename in
+EAX instead of calling the resource getter again from a load/save detour. Bound
+filename reads and skip map-link processing for ordinary savegames. Existing-map
+and savegame crash reports remain an open live acceptance gate.
+
+- Fix missing controls with map-extensions: observe map load/save inside the
+  original functions, away from shared entry hooks and allocation patches.
+  Discovery regression tests cover patched normal and Extreme executables.
+- Retain objects across compatible height changes, using native building height
+  limits and rocky/marsh/moat permissions. Check new or worsened cliff edges
+  around the final masked footprints; recheck after connected removals.
+- Keep resource requirements, native connected teardown, rubble suppression and
+  unit-preservation guards. Include the failing binding name in startup errors.
+- UI 1.0.1 is unchanged. Live acceptance is still pending; this is an unsigned
+  test build, not a verified safe import workflow for arbitrary populated maps.
+
+## 0.2.0 — release candidate
+
+- Refresh linked height/terrain PNGs with a fifth native minimap button; show
+  linked filenames beside it. Links persist in a separate JSON sidecar, never
+  in the game's map format. Missing files invalidate their links.
+- Stage both PNGs before one shared import transaction. Preserve compatible
+  objects and mask their occupied tiles. Remove conflicting connected structures
+  through native teardown, without rubble or unit deletion.
+- Replace fixed-address picker/map discovery and the version allowlist with
+  shared UCP AoB bindings and independent map-layout checks. Executable-backed
+  discovery tests cover normal and Extreme. Live acceptance is still pending.
+
+
+## 0.1.2 — 2026-09-11
+
+- Add approved GPLv3 code license, corresponding-source information and retained
+  third-party notices. Record gynt's sourcehold license clarification.
+- Record maintainer acceptance of prior testing; no runtime changes from 0.1.1.
+
+## 0.1.1 test prerelease — 2026-09-11
+
+- Put Import/Export first, Open folder second, and Back last in all four PNG
+  submenus. Shared layout and native control order remain consistent.
+- Package filenames now follow the module version in definition.yml.
+- Nine concise localized store descriptions include the destructive import
+  warning and one editor preview with localized alternative text.
+
 ## 0.1.0 test.4 — 2026-09-10
 
 - Fix imports after entering map view on an empty map: the native building scan
