@@ -101,7 +101,7 @@ function M.importLinked(names)
     if names[kind] then
       local path = paths.resolve(state.folder, names[kind])
       resolved[kind] = path
-      images[kind] = kind == 'height' and png.readGray(state.png, path) or png.readRGB(state.png, path)
+      images[kind] = kind == 'height' and png.readGray(path) or png.readRGB(state.png, path)
     end
   end
   local reports = importImages(images)

@@ -14,9 +14,10 @@ Linked filenames persist in `mapping/map-png-links.json` for saved maps. Missing
 images invalidate their links. Native `.map` files are not modified to store links.
 Live acceptance of the new cleanup is pending; see docs/LINKED_REFRESH.md.
 The picker's Open folder button opens this mapping directory in Windows.
-Import previews show the selected PNG; export initially previews the converted
-map layer. The module uses Windows GDI+ and in-process map access; no Python
-installation or external conversion executable is required by players.
+Height import and preview preserve stored grayscale values and convert colour
+to brightness without colour management. Height PNGs can use standard colour
+types and bit depths, including Adam7 interlacing. Terrain imports and PNG
+exports use Windows GDI+. Players do not need Python or a conversion tool.
 
 The creator's transparent glyphs are cropped and enlarged by exact pixel
 replication, then drawn inside the game's native button surround. No vanilla

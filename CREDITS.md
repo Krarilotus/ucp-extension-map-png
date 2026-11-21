@@ -23,6 +23,10 @@ research remains with their authors; this module does not claim their work.
 
 ## Adapted code, data and research references
 
+- **Monsterfisch** — native save/load path fix and raw PNG height decoding.
+  The Lua inflate code adapts **Mark Adler**'s puff 2.3. The original notice
+  is included in `licenses/puff-zlib.txt`.
+  https://github.com/madler/zlib/tree/v1.3.1/contrib/puff
 - **Gynt and sourcehold contributors** — map-layer research, tile-coordinate
   translation reference and terrain logic tables:
   https://github.com/sourcehold/sourcehold-maps . `mappng/map/palette.lua` ports

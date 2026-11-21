@@ -82,8 +82,10 @@ function M.readBinary(path, limit)
   assert((ffi.tonumber or tonumber)(ffi.cast("unsigned long", file)) ~= 0xFFFFFFFF,
     "map-png: cannot read " .. path)
   local ok, result = pcall(function()
-    local size = (ffi.tonumber or tonumber)(kernel.GetFileSize(file, nil))
-    assert(size <= limit, "map-png: file exceeds reading limit")
+    local high = ffi.new("unsigned long[1]")
+    local size = (ffi.tonumber or tonumber)(kernel.GetFileSize(file, high))
+    assert(high[0] == 0 and size ~= 0xFFFFFFFF and size <= limit,
+      "map-png: file exceeds reading limit or its size is unavailable")
     local buffer, read = ffi.new("unsigned char[?]", math.max(1, size)), ffi.new("unsigned long[1]")
     assert(kernel.ReadFile(file, buffer, size, read, nil) ~= 0 and read[0] == size,
       "map-png: incomplete file read")

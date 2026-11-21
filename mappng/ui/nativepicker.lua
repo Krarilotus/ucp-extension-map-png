@@ -51,8 +51,12 @@ local function refreshPreview(name)
   if not name and state.exportPreview then state.preview = state.exportPreview; return end
   local ok, result = pcall(function()
     local image
-    if name then image = png.readRGB(state.png, paths.resolve(state.model.folder, name))
-    else image = actions.preview(state.model.what) end
+    if name then
+      local path = paths.resolve(state.model.folder, name)
+      image = state.model.what == "height" and png.readGray(path) or png.readRGB(state.png, path)
+    else
+      image = actions.preview(state.model.what)
+    end
     assert(image.width == 400 and image.height == 400, "map-png: expected a 400x400 PNG")
     local size = state.model.mode == "import" and layout.importPreviewSize or 160
     return artwork.preview(image, size, size)
