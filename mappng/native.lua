@@ -14,8 +14,8 @@ M.patterns = {
   activate = '56 8B F1 83 7E 5C 00 75 22 A1 I(? ? ? ?) 85 C0 A3 I(? ? ? ?) C7 05 I(? ? ? ?) 01 00 00 00',
   pop = '8B 41 64 8B 51 68 56 8B 71 60 89 41 60 8B 41 6C 89 51 64 8B 51 70 89 41 68 33 C0',
   building = '55 56 8B 74 24 0C 8B C6 69 C0 2C 03 00 00 57 8B F9 8D 14 38 66 C7 82 E4 00 00 00 03 00 83 3D I(? ? ? ?) 00',
-  tree = '56 57 8B 7C 24 0C 8B F1 57 B9 I(? ? ? ?) @(E8 ? ? ? ?) 8B C7 69 C0 9C 00 00 00',
-  rock = '56 8B 74 24 08 57 8B F9 56 B9 I(? ? ? ?) @(E8 ? ? ? ?) C1 E6 05',
+  tree = '56 57 8B 7C 24 0C 8B F1 57 B9 I(? ? ? ?) E8 ? ? ? ? 8B C7 69 C0 9C 00 00 00',
+  rock = '56 8B 74 24 08 57 8B F9 56 B9 I(? ? ? ?) E8 ? ? ? ? C1 E6 05',
   wall = '55 56 8B 74 24 10 0F BF 2C 75 I(? ? ? ?) 57 8B F9 8D 4C 6D 00 8B C6 2B 04 8D I(? ? ? ?)',
   buildings = '51 8B 44 24 08 69 C0 2C 03 00 00 66 83 B8 I(? ? ? ?) 43 53 0F BF 98 ? ? ? ?',
   landscape = '53 55 56 8B 74 24 10 69 F6 9C 00 00 00 8B 86 I(? ? ? ?) 0F BF 9E ? ? ? ?',
@@ -28,8 +28,8 @@ M.patterns = {
   saveBegin = '89 44 24 1C 89 7E 20 89 6C 24 18 89 7C 24 14 89 7E 0C 89 7E 28 89 3B',
   saveDone = '83 C4 30 C7 46 10 00 00 00 00 5F 5E 5D 5B 83 C4 10 C2 04 00',
   newMap = '53 55 56 8B F1 57 33 FF 89 BE 1C 29 55 00 89 BE 20 29 55 00',
-  -- utils.AOBExtract's @() adds the call offset to the pattern start, not to the
-  -- call itself, so this call target is resolved by hand below.
+  -- UCP 3.0.7's @() reads the correct operand but omits the opcode's offset
+  -- from the result. Capture the displacement with I() on all framework builds.
   resource = 'B9 I(? ? ? ?) E8 I(? ? ? ?) 53 68 00 80 00 00 50 E8 ? ? ? ? 8B F8 83 CD FF',
 }
 local cached
@@ -68,9 +68,11 @@ function M.resolve()
   local rel=found.resource[3]
   if rel>=0x80000000 then rel=rel-0x100000000 end
   r.resource, r.resourceName=found.resource[2],found.resource[1]+10+rel
-  -- mov eax,[ecx+0BC4h]: the current file name getter. Calling anything else
-  -- from the save/load hooks corrupts game code or crashes.
-  for i,b in ipairs({0x8B,0x81,0xC4,0x0B,0x00,0x00}) do
+  -- The getter indexes the resource manager's path array and returns its
+  -- current path. Verify the full leaf, including its argument-free return.
+  local getter = {0x8B,0x81,0xC4,0x0B,0,0,0x69,0xC0,0xE9,0x03,0,0,
+    0x8D,0x84,0x08,0xE0,0xAE,0x07,0,0xC3}
+  for i,b in ipairs(getter) do
     assert(core.readByte(r.resourceName+i-1)==b,'map-png: unknown file name getter')
   end
   for _, name in ipairs({'loadBegin','loadDone','saveBegin','saveDone','newMap'}) do r.hooks[name]=found[name][1] end

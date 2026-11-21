@@ -37,6 +37,7 @@ class NativeDiscovery(unittest.TestCase):
             return matches[0]
         core = lua.table_from({
             'AOBScan':scan,
+            'readByte':lambda a: pe.read(a,1)[0],
             'readInteger':lambda a: struct.unpack('<i', pe.read(a,4))[0],
             'readSmallInteger':lambda a: struct.unpack('<h', pe.read(a,2))[0],
             'readBytes':lambda a,n:lua.table_from(list(pe.read(a,n))),
@@ -44,7 +45,19 @@ class NativeDiscovery(unittest.TestCase):
         lua.globals().core=core
         lua.execute("package.loaded.core=core; log=function() end; VERBOSE=0")
         lua.globals().utils=lua.execute((FRAMEWORK/'utils.lua').read_text())
-        return lua, lua_harness.load(lua,'mappng.native').resolve()
+        bindings = lua_harness.load(lua,'mappng.native').resolve()
+        if not patches:
+            pattern = "B9 I(? ? ? ?) @(E8 ? ? ? ?) 53 68 00 80 00 00 50 E8 ? ? ? ? 8B F8 83 CD FF"
+            match, resource, legacy = lua.globals().utils.AOBExtract(pattern)
+            displacement = struct.unpack('<i', pe.read(match + 6, 4))[0]
+            self.assertEqual(bindings.resource, resource)
+            self.assertEqual(bindings.resourceName, match + 10 + displacement)
+            self.assertEqual(pe.read(bindings.resourceName, 20),
+                             bytes.fromhex('8B 81 C4 0B 00 00 69 C0 E9 03 00 00 8D 84 08 E0 AE 07 00 C3'))
+            source = (FRAMEWORK / 'utils.lua').read_text()
+            expected_error = 0 if '5 + address + (group.start - 1)' in source else 5
+            self.assertEqual(bindings.resourceName - legacy, expected_error)
+        return lua, bindings
 
     def test_classic(self):
         lua,r=self.resolve('Stronghold Crusader.exe')
