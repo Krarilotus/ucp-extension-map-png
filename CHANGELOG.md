@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.3
+
+- Height maps can be any PNG (RGB, RGBA, palette, 8 or 16 bit, grey or
+  colour), not just 8-bit grey. Heights are read with an own PNG decoder
+  instead of GDI+, which applied gamma / colour profiles and shifted the
+  heights. Grey pixels keep their exact value; coloured pixels use their
+  brightness.
+
 ## 0.2.1 — test candidate
 
 - Fix missing controls with map-extensions: observe map load/save inside the
