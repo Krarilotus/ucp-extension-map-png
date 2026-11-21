@@ -13,7 +13,7 @@
 
 local M = {}
 
-local byte, char = string.byte, string.char
+local byte = string.byte
 local floor = math.floor
 
 ---------------------------------------------------------------------------
@@ -375,14 +375,55 @@ function M.toGray(png)
   return { width = width, height = height, gray = gray }
 end
 
+--- Turns a decoded PNG into { width, height, rgb } with packed 0xRRGGBB,
+--- 16-bit and low bit-depth values scaled to 0..255. Alpha is ignored.
+function M.toRGB(png)
+  local width, height, channels = png.width, png.height, png.channels
+  local maxValue = (1 << png.depth) - 1
+  local palette, colourType = png.palette, png.colourType
+
+  local function scale(v)
+    if maxValue == 255 then return v end
+    return floor(v * 255 / maxValue + 0.5)
+  end
+
+  local rgb = {}
+  for y = 0, height - 1 do
+    local row = png.rows[y]
+    local out = y * width
+    for x = 0, width - 1 do
+      local i = x * channels
+      local r, g, b
+      if colourType == 3 then
+        local entry = palette[row[i]] or { 0, 0, 0 }
+        r, g, b = entry[1], entry[2], entry[3]
+      elseif colourType == 0 or colourType == 4 then
+        r = scale(row[i]); g, b = r, r
+      else
+        r, g, b = scale(row[i]), scale(row[i + 1]), scale(row[i + 2])
+      end
+      rgb[out + x] = (r << 16) | (g << 8) | b
+    end
+  end
+  return { width = width, height = height, rgb = rgb }
+end
+
+local function readBytes(path)
+  return require("mappng.paths").readBinary(path, 64 * 1024 * 1024)
+end
+
+--- Reads a PNG file into { width, height, rgb }.
+function M.readRGB(path)
+  return M.toRGB(M.decodeBytes(readBytes(path)))
+end
+
 --- Reads a PNG file into { width, height, gray }.
+---
+--- The game's Lua refuses io.open on most absolute paths ("Invalid path"), so
+--- the bytes come from paths.readBinary (kernel32, UTF-16 paths).
 ---@param path string
 function M.readGray(path)
-  local file, err = io.open(path, "rb")
-  if not file then error(string.format("map-png: cannot open %s: %s", path, tostring(err)), 0) end
-  local data = file:read("a")
-  file:close()
-  return M.toGray(M.decodeBytes(data))
+  return M.toGray(M.decodeBytes(readBytes(path)))
 end
 
 return M

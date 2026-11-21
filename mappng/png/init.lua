@@ -29,6 +29,15 @@ end
 ---@param path string
 ---@return table image { width, height, rgb }
 function M.readRGB(bound, path)
+  local okOwn, own = pcall(decode.readRGB, path)
+  if okOwn then
+    return own
+  end
+  if log then
+    log(WARNING, string.format("map-png: own PNG reader failed (%s), using GDI+ for %s",
+      tostring(own), path))
+  end
+
   local ffi = bound.ffi
   local gdi = bound.gdiplus
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.4
+
+- The own PNG reader now really runs: the game's Lua refused io.open on the
+  PNG paths, so 0.2.3 always fell back to GDI+. Files are read through
+  kernel32 now.
+- Terrain PNGs and the picker preview use the own reader too, so colour
+  profiles in a PNG can no longer change terrain colours.
+
 ## 0.2.3
 
 - Height maps can be any PNG (RGB, RGBA, palette, 8 or 16 bit, grey or
