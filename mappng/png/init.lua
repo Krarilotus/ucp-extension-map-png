@@ -13,6 +13,7 @@
 --- NOT YET VERIFIED IN GAME -- see mappng/png/gdiplus.lua.
 
 local gdiplus = require("mappng.png.gdiplus")
+local decode = require("mappng.png.decode")
 
 local M = {}
 
@@ -85,17 +86,33 @@ function M.readRGB(bound, path)
   return result
 end
 
---- Reads a PNG as grayscale. Uses the green channel, matching OpenCV's
---- behaviour closely enough for the grayscale PNGs sourcehold writes; a true
---- grayscale source has r == g == b anyway.
+--- Reads a PNG as grayscale. Any PNG works (grey, RGB, RGBA, palette, 8 or
+--- 16 bit). The file is decoded by mappng.png.decode, not GDI+, because GDI+
+--- applies gamma / colour profiles and shifts the heights. GDI+ is only used
+--- if the file cannot be read that way.
 ---
 ---@return table image { width, height, gray }
 function M.readGray(bound, path)
+  local ok, result = pcall(decode.readGray, path)
+  if ok then
+    return result
+  end
+  if log then
+    log(WARNING, string.format("map-png: own PNG reader failed (%s), using GDI+ for %s",
+      tostring(result), path))
+  end
+
   local image = M.readRGB(bound, path)
 
   local gray = {}
   for pixel = 0, (image.width * image.height) - 1 do
-    gray[pixel] = (image.rgb[pixel] >> 8) & 0xFF
+    local packed = image.rgb[pixel]
+    local r, g, b = (packed >> 16) & 0xFF, (packed >> 8) & 0xFF, packed & 0xFF
+    if r == g and g == b then
+      gray[pixel] = g
+    else
+      gray[pixel] = math.floor(0.299 * r + 0.587 * g + 0.114 * b + 0.5)
+    end
   end
 
   return { width = image.width, height = image.height, gray = gray }
