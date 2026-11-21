@@ -1,4 +1,14 @@
-# 0.2.1 test candidate
+# 0.2.3 test candidate
+
+0.2.1-rc.1 was reported to crash while loading existing editor maps and
+ordinary saves. The 0.2.2 binding correction addresses the five-byte resource
+getter error in framework 3.0.7. Before publishing, open an existing editor map
+and an ordinary save, load a custom skirmish-trail map, save and reload, and
+refresh linked PNGs in Crusader and Extreme. Check each saved file with Map
+PNG enabled and disabled. Executable-backed discovery and the Lua tests do
+not exercise these gameplay flows.
+
+## 0.2.1 test candidate
 
 Refresh, per-map sidecar links, selective cleanup and updated localized warnings
 are implemented. Automated tests cover the UCP-contract refactor;

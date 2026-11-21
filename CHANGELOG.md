@@ -1,12 +1,19 @@
 # Changelog
 
-## 0.2.3
+## 0.2.3 — test candidate
 
-- Height maps can be any PNG (RGB, RGBA, palette, 8 or 16 bit, grey or
-  colour), not just 8-bit grey. Heights are read with an own PNG decoder
-  instead of GDI+, which applied gamma / colour profiles and shifted the
-  heights. Grey pixels keep their exact value; coloured pixels use their
-  brightness.
+- Import and preview 400×400 grayscale, grayscale with alpha, indexed, RGB
+  and RGBA height PNGs at their standard bit depths, including Adam7 images.
+  Preserve 8-bit gray values, scale other depths to the height range and
+  convert colour to brightness. Ignore colour profiles and alpha in heightmaps.
+- Validate PNG chunks and zlib checksums, bound decoding and reject malformed
+  heightmaps before the import can change the map.
+
+## 0.2.2 — save/load compatibility
+
+- Correct the native resource path getter on UCP 3.0.7. Its relative AOB
+  capture landed five bytes early in the map save/load callbacks. The
+  editor-map, ordinary-save and custom-trail cases still require live checks.
 
 ## 0.2.1 — test candidate
 
