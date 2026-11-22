@@ -80,6 +80,27 @@ local function importImages(images)
       end
     end
   end
+  -- Plain earth on a plateau. The editor's land tool stores ground at exactly
+  -- height 80 as plateau medium (logic2 4) and at 130 as plateau high (8); the
+  -- game's logic update strips the earth flag from raised tiles whose logic2
+  -- is 0, so imported plain earth there was drawn as bare raised ground.
+  if not staged.logic2 then
+    local _, allocated = stage('terrain', v.layers)
+    for field, entry in pairs(allocated) do
+      buffers[field], staged[field] = entry, entry.data
+    end
+  end
+  do
+    local heights = staged.height or v.layers.height
+    local logic1, logic2 = staged.logic1, staged.logic2
+    local plain = 0x10 | 0x20 | 0x8000 -- border, border edge, earth
+    for tile = 0, diamond.TILE_COUNT - 1 do
+      if logic2[tile] == 0 and (logic1[tile] & ~plain) == 0 then
+        local h = heights[tile]
+        if h == 80 then logic2[tile] = 4 elseif h == 130 then logic2[tile] = 8 end
+      end
+    end
+  end
   local remove = cleanup.prepare(core, state.ffi, v, staged)
   -- A layer-only undo cannot resurrect deleted objects safely.
   state.snapshots = {}

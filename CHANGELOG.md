@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.5
+
+- Plain earth on plateaus looks right: ground at exactly height 80 is stored
+  as mid plateau and at 130 as high plateau, like the editor's land tool does.
+  Before, the game stripped the earth flag from those tiles and drew them as
+  bare raised ground. Also applies when only a height map is imported.
+
 ## 0.2.4
 
 - The own PNG reader now really runs: the game's Lua refused io.open on the
