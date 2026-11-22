@@ -70,8 +70,10 @@ function M.open(core, ffi, view, native)
     if not object.seen[tile] then object.seen[tile]=true; object.tiles[#object.tiles+1]=tile end
   end
   local function shape(object,x,y,size)
-    assert(size>=1 and size<=13,'map-png: unsupported object footprint size')
-    for i=0,size*size-1 do
+    local zeroSizedTree=object.kind=='tree' and size==0
+    assert(zeroSizedTree or (size>=1 and size<=13),'map-png: unsupported object footprint size')
+    -- Native tree removal visits entry zero before comparing the index with size squared.
+    for i=0,math.max(1,size*size)-1 do
       local entry=native.shapes+(size*169+i)*24
       local xx,yy=x+core.readInteger(entry),y+core.readInteger(entry+4)
       assert(xx>=0 and xx<400 and yy>=0 and yy<400,'map-png: object footprint outside map')

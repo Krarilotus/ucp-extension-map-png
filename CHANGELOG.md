@@ -8,6 +8,8 @@
   convert colour to brightness. Ignore colour profiles and alpha in heightmaps.
 - Validate PNG chunks and zlib checksums, bound decoding and reject malformed
   heightmaps before the import can change the map.
+- Include the footprint for active trees with a stored size of zero when
+  checking objects affected by an editor import.
 
 ## 0.2.2 — save/load compatibility
 

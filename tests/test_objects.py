@@ -77,3 +77,16 @@ class Objects(unittest.TestCase):
           local a=open(); assert(#a.objects['building:1'].tiles==40)
           assert(a.objects['building:1'].links[1]=='tree:1' and a.objects['tree:1'].uid==77)
         ''')
+
+    def test_zero_size_tree_includes_the_native_first_footprint_tile(self):
+        self.lua.execute('''
+          local tree=native.landscape+0x1C+0x9C
+          local row=memory[native.rows+199*12]
+          memory[tree+0x44]=1
+          memory[tree+0x62]=199; memory[tree+0x64]=199; memory[tree+0x68]=row+199
+          memory[native.shapes]=1
+          local tiles=open().objects['tree:1'].tiles
+          assert(#tiles==2 and tiles[1]==row+199 and tiles[2]==row+200)
+          memory[tree+0x6C]=14
+          assert(not pcall(open))
+        ''')
