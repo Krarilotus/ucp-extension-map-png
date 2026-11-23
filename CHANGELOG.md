@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.6
+
+- Importing no longer fails with "unsupported object footprint size" when a
+  building, tree or rock on the map has an unusual size; that object is kept
+  on its own tile and the log names it.
+
 ## 0.2.5
 
 - Plain earth on plateaus looks right: ground at exactly height 80 is stored
