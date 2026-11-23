@@ -2,7 +2,6 @@
 
 Both height and terrain imports preserve compatible footprints and remove only
 conflicting objects/connected structures before applying the PNG (0.2.0).
-See LINKED_REFRESH.md for the conservative conflict policy.
 Show one localized warning below the PNG preview; do not repeat
 it over the image. The warning must explicitly say that objects/structures will
 be removed, without an extra save-first sentence. Preserve units. A layer snapshot cannot restore

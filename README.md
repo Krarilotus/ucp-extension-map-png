@@ -12,7 +12,6 @@ mask their occupied tiles. Conflicting structures are removed with native
 teardown, without rubble; units are not deleted. Layer-only undo is unavailable.
 Linked filenames persist in `mapping/map-png-links.json` for saved maps. Missing
 images invalidate their links. Native `.map` files are not modified to store links.
-Live acceptance of the new cleanup is pending; see docs/LINKED_REFRESH.md.
 The picker's Open folder button opens this mapping directory in Windows.
 Height import and preview preserve stored grayscale values and convert colour
 to brightness without colour management. Height PNGs can use standard colour
@@ -41,8 +40,6 @@ acceptance. A passing offline suite does not establish native UI correctness.
 See [testing](docs/TESTING.md), [picker acceptance](docs/PICKER_TEST.md), and the
 [modder integration guide](docs/NATIVE_UI.md). The original design remains in
 [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md); it is not a completion report.
-Stable store publication is pending live acceptance. The unsigned test prerelease
-has [portable installation instructions](docs/PORTABLE_TEST.md).
 
 See [credits and third-party provenance](CREDITS.md) for authors, retained license
 notices. GPLv3 code licensing and Monsterfish_ artwork permission are recorded.
