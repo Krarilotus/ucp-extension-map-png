@@ -71,8 +71,15 @@ function M.open(core, ffi, view, native)
   end
   local function shape(object,x,y,size)
     local zeroSizedTree=object.kind=='tree' and size==0
-    assert(zeroSizedTree or (size>=1 and size<=13),'map-png: unsupported object footprint size')
-    -- Native tree removal visits entry zero before comparing the index with size squared.
+    if not zeroSizedTree and (size<1 or size>13) then
+      -- Seen in real maps (likely objects placed by other modules). Keep the
+      -- object on its own tile rather than failing the whole import.
+      log(WARNING,string.format('map-png: %s %d (type %s) has footprint size %d; using its own tile only',
+        object.kind,object.id,tostring(object.type),size))
+      assert(x>=0 and x<400 and y>=0 and y<400,'map-png: object outside map')
+      if at[y*400+x] then add(object,at[y*400+x]) end
+      return
+    end
     for i=0,math.max(1,size*size)-1 do
       local entry=native.shapes+(size*169+i)*24
       local xx,yy=x+core.readInteger(entry),y+core.readInteger(entry+4)
