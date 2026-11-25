@@ -1,4 +1,4 @@
-## Map PNG 0.2.3
+## Map PNG 0.2.8
 
 Magasságtérkép és terep importálása/exportálása PNG-ként a térképszerkesztőben. Kapcsolt PNG-k frissítése egy kattintással. Az ütköző objektumok és épületek törlődnek. A magasságtérképek szürkeárnyalatos, indexelt és RGB PNG-ket is fogadnak, 16 bites és váltottsoros változatban is.
 

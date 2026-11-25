@@ -1,4 +1,4 @@
-## Map PNG 0.2.3
+## Map PNG 0.2.8
 
 Import/export heightmaps and terrain PNGs in the map editor. Link PNGs and refresh changes with one click. Conflicting objects and structures are removed. Heightmaps support grayscale, indexed and RGB PNGs, including 16-bit and interlaced images.
 

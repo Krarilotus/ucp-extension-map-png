@@ -6,8 +6,9 @@
 ---   grayscale  { width, height, gray = <0-based 0..255> }
 ---   colour     { width, height, rgb  = <0-based packed 0xRRGGBB> }
 ---
---- Height imports preserve raw PNG samples. Terrain imports and exports use
---- GDI+'s 32bppARGB conversion. Alpha is ignored and exports are opaque.
+--- Imports read the raw PNG samples, without colour management. Terrain
+--- imports fall back to GDI+'s 32bppARGB conversion when the file cannot be
+--- decoded that way; exports use GDI+. Alpha is ignored and exports are opaque.
 ---
 --- NOT YET VERIFIED IN GAME -- see mappng/png/gdiplus.lua.
 
@@ -24,12 +25,12 @@ local function check(status, what)
   end
 end
 
---- Reads a PNG into a flat 0-based array of packed 0xRRGGBB values.
----
----@param bound table result of gdiplus.initialize()
----@param path string
----@return table image { width, height, rgb }
-function M.readRGB(bound, path)
+local function readRaw(path, convert)
+  local data = paths.readBinary(path, decode.FILE_LIMIT)
+  return convert(decode.decodeBytes(data, diamond.SIZE))
+end
+
+local function readGdiplus(bound, path)
   local ffi = bound.ffi
   local gdi = bound.gdiplus
 
@@ -87,11 +88,23 @@ function M.readRGB(bound, path)
   return result
 end
 
+--- Reads a PNG into a flat 0-based array of packed 0xRRGGBB values.
+---
+---@param bound table result of gdiplus.initialize()
+---@param path string
+---@return table image { width, height, rgb }
+function M.readRGB(bound, path)
+  local ok, image = pcall(readRaw, path, decode.toRGB)
+  if ok then return image end
+  log(WARNING, string.format("map-png: own PNG reader failed (%s), using GDI+ for %s",
+    tostring(image), path))
+  return readGdiplus(bound, path)
+end
+
 --- Reads a heightmap without colour management or decoder fallback.
 ---@return table image { width, height, gray }
 function M.readGray(path)
-  local data = paths.readBinary(path, decode.FILE_LIMIT)
-  return decode.toGray(decode.decodeBytes(data, diamond.SIZE))
+  return readRaw(path, decode.toGray)
 end
 
 --- Shared writer. `fetch(pixel)` returns r, g, b.

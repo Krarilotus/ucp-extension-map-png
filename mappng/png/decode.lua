@@ -414,13 +414,10 @@ function M.decodeBytes(data, expectedSide)
   }
 end
 
---- Turns a decoded PNG into a grey image for the height layer.
----
---- Grey pixels keep their stored value; colour pixels with r == g == b keep
---- that value; other colours use the usual brightness weights
---- (0.299 r + 0.587 g + 0.114 b). 16-bit and low bit-depth values are scaled
---- to 0..255. Alpha is ignored.
-function M.toGray(png)
+--- Converts each pixel to 0..255 r, g, b and stores combine(r, g, b) in a
+--- flat 0-based array. 16-bit and low bit-depth values are scaled. Alpha is
+--- ignored.
+local function convert(png, combine)
   local width, height, channels = png.width, png.height, png.channels
   local maxValue = (1 << png.depth) - 1
   local palette = png.palette
@@ -431,30 +428,49 @@ function M.toGray(png)
     return floor(v * 255 / maxValue + 0.5)
   end
 
-  local function luma(r, g, b)
-    if r == g and g == b then return r end
-    return floor(0.299 * r + 0.587 * g + 0.114 * b + 0.5)
-  end
-
-  local gray = {}
+  local result = {}
   for y = 0, height - 1 do
     local row = png.rows[y]
     local out = y * width
     for x = 0, width - 1 do
       local i = x * channels
-      local value
+      local r, g, b
       if colourType == 3 then
         local entry = assert(palette[row[i]], "map-png: PNG pixel uses a missing palette entry")
-        value = luma(entry[1], entry[2], entry[3])
+        r, g, b = entry[1], entry[2], entry[3]
       elseif colourType == 0 or colourType == 4 then
-        value = scale(row[i])
+        r = scale(row[i])
+        g, b = r, r
       else
-        value = luma(scale(row[i]), scale(row[i + 1]), scale(row[i + 2]))
+        r, g, b = scale(row[i]), scale(row[i + 1]), scale(row[i + 2])
       end
-      gray[out + x] = value
+      result[out + x] = combine(r, g, b)
     end
   end
-  return { width = width, height = height, gray = gray }
+  return result
+end
+
+local function luma(r, g, b)
+  if r == g and g == b then return r end
+  return floor(0.299 * r + 0.587 * g + 0.114 * b + 0.5)
+end
+
+local function pack(r, g, b)
+  return (r << 16) | (g << 8) | b
+end
+
+--- Turns a decoded PNG into a grey image for the height layer.
+---
+--- Grey pixels keep their stored value; colour pixels with r == g == b keep
+--- that value; other colours use the usual brightness weights
+--- (0.299 r + 0.587 g + 0.114 b).
+function M.toGray(png)
+  return { width = png.width, height = png.height, gray = convert(png, luma) }
+end
+
+--- Turns a decoded PNG into { width, height, rgb } with packed 0xRRGGBB.
+function M.toRGB(png)
+  return { width = png.width, height = png.height, rgb = convert(png, pack) }
 end
 
 return M

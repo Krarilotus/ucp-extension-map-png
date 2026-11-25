@@ -1,4 +1,4 @@
-## Map PNG 0.2.3
+## Map PNG 0.2.8
 
 Importa/exporta alturas y terreno como PNG en el editor de mapas. Actualiza los PNG vinculados con un clic. Se eliminan los objetos y estructuras incompatibles. Los mapas de altura admiten PNG en escala de grises, indexados y RGB, incluidos los de 16 bits y entrelazados.
 

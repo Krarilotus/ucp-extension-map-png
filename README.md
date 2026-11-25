@@ -15,8 +15,8 @@ images invalidate their links. Native `.map` files are not modified to store lin
 The picker's Open folder button opens this mapping directory in Windows.
 Height import and preview preserve stored grayscale values and convert colour
 to brightness without colour management. Height PNGs can use standard colour
-types and bit depths, including Adam7 interlacing. Terrain imports and PNG
-exports use Windows GDI+. Players do not need Python or a conversion tool.
+types and bit depths, including Adam7 interlacing. Terrain imports use the
+same decoder and fall back to Windows GDI+; PNG exports use GDI+. Players do not need Python or a conversion tool.
 
 The creator's transparent glyphs are cropped and enlarged by exact pixel
 replication, then drawn inside the game's native button surround. No vanilla

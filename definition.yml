@@ -1,6 +1,6 @@
 name: map-png
 display-name: Map PNG
-version: 0.2.3
+version: 0.2.8
 author: Krarilotus
 type: module
 dependencies:

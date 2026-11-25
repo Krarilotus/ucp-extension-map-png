@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.8 — test candidate
+
+- Read terrain PNGs and their picker preview with the own decoder, so colour
+  profiles no longer change terrain colours. GDI+ remains the fallback for
+  terrain files it cannot read.
+- Store imported ground at exactly height 80 or 130 as mid or high plateau,
+  as the editor's land tool does, so plain earth on plateaus keeps its look.
+- Keep an object with an unsupported footprint size on its own tile and log
+  it, instead of failing the import.
+
 ## 0.2.3 — test candidate
 
 - Import and preview 400×400 grayscale, grayscale with alpha, indexed, RGB
