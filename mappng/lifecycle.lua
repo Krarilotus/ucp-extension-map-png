@@ -15,10 +15,11 @@ function M.initialize(ffi,folder)
   local store=assert(userdata.interface(),'map-png: user data folder unavailable')
   local function exists(name) return paths.exists(paths.resolve(folder,name)) end
   state.links=model.new(function(data)
+    local text=json:encode(data)
     local file=assert(store:open('links.json.tmp','wb'))
-    local written,err=file:write(json:encode(data))
-    file:close()
-    assert(written,err)
+    local written,err=file:write(text)
+    local closed,closeErr=file:close()
+    assert(written and closed,err or closeErr)
     assert(store:rename('links.json.tmp','links.json'))
   end,function(name) return pcall(paths.resolve,folder,name) end,exists)
   -- Earlier versions kept the index beside the PNGs; it is read, never written.
@@ -26,11 +27,11 @@ function M.initialize(ffi,folder)
   local file=store:open('links.json','rb')
   local text=file and file:read('*a')
   if file then file:close() end
-  if not text and paths.exists(legacy) then text=paths.readBinary(legacy,1024*1024) end
-  if text then
-    local ok,err=pcall(function() state.links.restore(json:decode(text)) end)
-    if not ok then log(WARNING,'map-png: ignored invalid link index: '..tostring(err)) end
-  end
+  local ok,err=pcall(function()
+    if not text and paths.exists(legacy) then text=paths.readBinary(legacy,1024*1024) end
+    if text then state.links.restore(json:decode(text)) end
+  end)
+  if not ok then log(WARNING,'map-png: ignored invalid link index: '..tostring(err)) end
   local getName=ffi.cast('char * (__thiscall *)(void *)',bindings.resourceName)
   local function identity()
     local name=ffi.string(getName(ffi.cast('void *',bindings.resource)))
@@ -71,9 +72,11 @@ function M.initialize(ffi,folder)
   state.installed=true; state.enabled=true
 end
 function M.link(kind,name)
+  if not state.enabled then return end
   local ok,err=pcall(state.links.link,kind,name)
   if not ok then log(WARNING,'map-png: PNG imported, but link could not be saved: '..tostring(err)) end
 end
+function M.available() return state.enabled end
 function M.names() return state.enabled and state.links.names() or {} end
 function M.refresh()
   assert(state.enabled,'map-png: map link tracking unavailable')

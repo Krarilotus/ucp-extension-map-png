@@ -34,15 +34,18 @@ M.patterns = {
 }
 local LINKS = {loadBegin=true, loadDone=true, saveBegin=true, saveDone=true, newMap=true, resource=true}
 local function find(name, pattern)
-  -- AOBExtract in framework 3.0.7 expects at least one capture (including in
-  -- its diagnostic formatter); plain function signatures use core.AOBScan.
+  -- The AOB cache can hold a later match; core.scanForAOB is uncached and
+  -- returns the first match in the image. AOBExtract needs a capture, so it
+  -- reads only captured patterns, at that first match.
+  local aob = pattern:gsub('I%(', ''):gsub('%)', '')
   local ok, result = pcall(function()
-    return pattern:find('(',1,true) and {utils.AOBExtract(pattern)} or {core.AOBScan(pattern)}
+    local first = core.scanForAOB(aob)
+    if not first or not pattern:find('(',1,true) then return {first} end
+    return {utils.AOBExtract(pattern, first, first)}
   end)
   assert(ok, 'map-png: native binding '..name..' failed: '..tostring(result))
   assert(result[1], 'map-png: native binding unavailable: '..name)
-  assert(core.scanForAOB((pattern:gsub('I%(', ''):gsub('%)', '')), result[1] + 1) == nil,
-    'map-png: native binding ambiguous: '..name)
+  assert(core.scanForAOB(aob, result[1] + 1) == nil, 'map-png: native binding ambiguous: '..name)
   return result
 end
 local cached

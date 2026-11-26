@@ -49,6 +49,9 @@ local paths = require('mappng.paths')
 
 local M = {}
 
+--- Linked refresh is neither drawn nor clickable while link tracking is off.
+local function unavailable(action) return action.mode=='refresh' and not links.available() end
+
 M.MENU_ITEM_TYPE = 0x3 -- NORMAL_ELEMENT, standalone
 M.LAST_ENTRY = 0x66
 local RENDER_FUNCTION_TYPE_SIMPLE = 0x1
@@ -132,6 +135,7 @@ local function makeRender(ffi, game, action)
       trace(key, "preview hidden, not drawing")
       return -- the game is not drawing the preview, so no row under it either
     end
+    if unavailable(action) then return end
 
     local rendering = game.Rendering
     local button = rendering.ButtonState
@@ -179,6 +183,7 @@ local function makeAction(ffi, action, onClick)
   local handler = ffi.cast("void (__cdecl *)(int)", guarded(key, function(_)
     if not state.enabled then return end
     trace(key, "entered")
+    if unavailable(action) then return end
     if screens.currentLayout().hidden then
       trace(key, "preview hidden, ignoring")
       return

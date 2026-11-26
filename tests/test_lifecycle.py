@@ -28,7 +28,7 @@ class Lifecycle(unittest.TestCase):
             open=function(_,name,mode)
               if mode=='rb' then return sidecar and {read=function() return sidecar end,close=function() end} end
               return {write=function(_,data) if writeFail then return nil,'disk failure' end; staged=data; return true end,
-                close=function() end}
+                close=function() return true end}
             end,
             rename=function() sidecar=staged; return true end,
           } end}

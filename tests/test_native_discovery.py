@@ -36,7 +36,7 @@ class NativeDiscovery(unittest.TestCase):
             found=matches(pattern)
             if len(found)!=1: raise AssertionError(f'{len(found)} matches: {pattern}')
             return found[0]
-        def again(pattern, start, *unused):
+        def again(pattern, start=0, *unused):
             return next((address for address in matches(pattern) if address >= start), None)
         core = lua.table_from({
             'AOBScan':scan,
@@ -103,7 +103,7 @@ class NativeDiscovery(unittest.TestCase):
 
     def test_missing_binding_error_names_the_failed_site(self):
         lua=lua_harness.runtime()
-        lua.execute("core={AOBScan=function() error('not found') end}; utils={}")
+        lua.execute("core={scanForAOB=function() error('not found') end}; utils={}")
         native=lua_harness.load(lua,'mappng.native')
         native.patterns=lua.table_from({'banner':'AA BB CC'})
         with self.assertRaisesRegex(Exception,'native binding banner failed:.*not found'):

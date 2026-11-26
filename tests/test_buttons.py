@@ -26,6 +26,7 @@ FAKE_UI = r"""
 local LAST = 0x66
 core={AOBScan=function() return 1 end}
 package.loaded['mappng.native']={resolve=function() return {ui={trimText=1}} end}
+package.loaded['mappng.lifecycle']={available=function() return true end,names=function() return {} end}
 
 local function copy(t)
   if type(t) ~= "table" then return t end

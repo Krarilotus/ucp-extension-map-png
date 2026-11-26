@@ -5,7 +5,7 @@
 - Keep the PNG link index in the UCP user data folder. An index left in the
   mapping folder by earlier versions is read and never changed.
 - Keep plain PNG import/export when the linked-refresh sites are missing;
-  only linked refresh turns off, with a warning.
+  only linked refresh turns off and hides its button, with a warning.
 - Refuse a native site whose pattern matches more than once.
 - Require framework 3.0.8.
 
