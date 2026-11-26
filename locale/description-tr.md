@@ -1,4 +1,4 @@
-## Map PNG 0.2.8
+## Map PNG
 
 Harita düzenleyicide yükseklik ve arazi PNG'lerini içe/dışa aktarın. Bağlı PNG'leri tek tıkla yenileyin. Çakışan nesneler ve yapılar kaldırılır. Yükseklik haritaları 16 bit ve geçmeli görüntüler dâhil gri tonlamalı, dizinli ve RGB PNG'leri destekler.
 

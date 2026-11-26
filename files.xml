@@ -5,7 +5,16 @@
     <file src="definition.yml" />
     <file src="options.yml" />
     <file src="mappng" />
-    <file src="resources" />
+    <file src="resources/icons/isolated/export_heightmap.555.tgx" target="resources/icons/isolated" />
+    <file src="resources/icons/isolated/export_heightmap.565.tgx" target="resources/icons/isolated" />
+    <file src="resources/icons/isolated/export_textures.555.tgx" target="resources/icons/isolated" />
+    <file src="resources/icons/isolated/export_textures.565.tgx" target="resources/icons/isolated" />
+    <file src="resources/icons/isolated/import_heightmap.555.tgx" target="resources/icons/isolated" />
+    <file src="resources/icons/isolated/import_heightmap.565.tgx" target="resources/icons/isolated" />
+    <file src="resources/icons/isolated/import_textures.555.tgx" target="resources/icons/isolated" />
+    <file src="resources/icons/isolated/import_textures.565.tgx" target="resources/icons/isolated" />
+    <file src="resources/icons/isolated/refresh_import.555.tgx" target="resources/icons/isolated" />
+    <file src="resources/icons/isolated/refresh_import.565.tgx" target="resources/icons/isolated" />
     <file src="locale" />
     <file src="README.md" />
     <file src="CHANGELOG.md" />

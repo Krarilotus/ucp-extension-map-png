@@ -43,7 +43,7 @@ class TestLocales(unittest.TestCase):
     def test_store_package_includes_runtime_images_and_locales(self):
         entries = ET.parse(ROOT / "files.xml").findall("./files/file")
         sources = {e.attrib["src"] for e in entries}
-        self.assertTrue({"init.lua", "definition.yml", "options.yml", "mappng", "resources", "locale"} <= sources)
+        self.assertTrue({"init.lua", "definition.yml", "options.yml", "mappng", "locale"} <= sources)
         self.assertTrue({"CREDITS.md", "licenses"} <= sources)
         self.assertTrue(all((ROOT / src).exists() for src in sources))
         self.assertFalse({"tests", "tools", ".git", "IMPLEMENTATION_PLAN.md"} & sources)

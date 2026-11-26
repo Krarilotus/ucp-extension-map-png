@@ -1,4 +1,4 @@
-## Map PNG 0.2.8
+## Map PNG
 
 Höhenkarten und Gelände im Karteneditor als PNG importieren/exportieren. Verknüpfte PNGs mit einem Klick neu einlesen. Störende Objekte und Gebäude werden entfernt. Höhenkarten unterstützen Graustufen-, indizierte und RGB-PNGs, auch mit 16 Bit oder Interlaced.
 

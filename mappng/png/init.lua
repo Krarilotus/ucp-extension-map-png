@@ -9,8 +9,6 @@
 --- Imports read the raw PNG samples, without colour management. Terrain
 --- imports fall back to GDI+'s 32bppARGB conversion when the file cannot be
 --- decoded that way; exports use GDI+. Alpha is ignored and exports are opaque.
----
---- NOT YET VERIFIED IN GAME -- see mappng/png/gdiplus.lua.
 
 local gdiplus = require("mappng.png.gdiplus")
 local decode = require("mappng.png.decode")

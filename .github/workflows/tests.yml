@@ -1,6 +1,5 @@
 name: map-png tests
 on:
-  # Runs only when started by hand (Actions tab > Run workflow), to save CI minutes.
   workflow_dispatch:
 jobs:
   lua:
