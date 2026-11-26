@@ -53,7 +53,7 @@ local function refreshPreview(name)
     local image
     if name then
       local path = paths.resolve(state.model.folder, name)
-      image = state.model.what == "height" and png.readGray(path) or png.readRGB(state.png, path)
+      image = state.model.what == "height" and png.readGray(state.png, path) or png.readRGB(state.png, path)
     else
       image = actions.preview(state.model.what)
     end

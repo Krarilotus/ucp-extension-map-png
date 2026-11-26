@@ -6,9 +6,8 @@
 ---   grayscale  { width, height, gray = <0-based 0..255> }
 ---   colour     { width, height, rgb  = <0-based packed 0xRRGGBB> }
 ---
---- Imports read the raw PNG samples, without colour management. Terrain
---- imports fall back to GDI+'s 32bppARGB conversion when the file cannot be
---- decoded that way; exports use GDI+. Alpha is ignored and exports are opaque.
+--- Imports prefer raw PNG samples and fall back to GDI+'s 32bppARGB conversion.
+--- Exports use GDI+. Alpha is ignored and exports are opaque.
 
 local gdiplus = require("mappng.png.gdiplus")
 local decode = require("mappng.png.decode")
@@ -28,7 +27,7 @@ local function readRaw(path, convert)
   return convert(decode.decodeBytes(data, diamond.SIZE))
 end
 
-local function readGdiplus(bound, path)
+local function readGdiplus(bound, path, kind, pixel)
   local ffi = bound.ffi
   local gdi = bound.gdiplus
 
@@ -44,8 +43,8 @@ local function readGdiplus(bound, path)
     check(gdi.GdipGetImageHeight(bitmap, h), "GdipGetImageHeight")
 
     local width, height = tonumber(w[0]), tonumber(h[0])
-    assert(width > 0 and height > 0 and width * height <= 4194304,
-      "map-png: PNG dimensions exceed the decoding limit")
+    assert(width == diamond.SIZE and height == diamond.SIZE,
+      "map-png: expected a 400x400 PNG")
 
     local rect = ffi.new("GpRect[1]")
     rect[0].X, rect[0].Y = 0, 0
@@ -55,7 +54,7 @@ local function readGdiplus(bound, path)
     check(gdi.GdipBitmapLockBits(bitmap, rect, gdiplus.IMAGE_LOCK_MODE_READ,
       gdiplus.PIXEL_FORMAT_32BPP_ARGB, data), "GdipBitmapLockBits")
 
-    local rgb = {}
+    local pixels = {}
     local okInner, err = pcall(function()
       local stride = tonumber(data[0].Stride)
       local scan0 = ffi.cast("unsigned char *", data[0].Scan0)
@@ -67,7 +66,7 @@ local function readGdiplus(bound, path)
         for x = 0, width - 1 do
           local p = row + (x * 4)
           -- 32bppARGB is little-endian BGRA in memory.
-          rgb[out + x] = (scan0[p + 2] << 16) | (scan0[p + 1] << 8) | scan0[p]
+          pixels[out + x] = pixel(scan0[p + 2], scan0[p + 1], scan0[p])
         end
       end
     end)
@@ -76,7 +75,7 @@ local function readGdiplus(bound, path)
       error(err, 0)
     end
 
-    return { width = width, height = height, rgb = rgb }
+    return { width = width, height = height, [kind] = pixels }
   end)
 
   gdi.GdipDisposeImage(bitmap)
@@ -86,23 +85,20 @@ local function readGdiplus(bound, path)
   return result
 end
 
---- Reads a PNG into a flat 0-based array of packed 0xRRGGBB values.
----
----@param bound table result of gdiplus.initialize()
----@param path string
----@return table image { width, height, rgb }
-function M.readRGB(bound, path)
-  local ok, image = pcall(readRaw, path, decode.toRGB)
+local function readImport(bound, path, convert, kind, pixel)
+  local ok, image = pcall(readRaw, path, convert)
   if ok then return image end
   log(WARNING, string.format("own PNG reader failed (%s), using GDI+ for %s",
     tostring(image), path))
-  return readGdiplus(bound, path)
+  return readGdiplus(bound, path, kind, pixel)
 end
 
---- Reads a heightmap without colour management or decoder fallback.
----@return table image { width, height, gray }
-function M.readGray(path)
-  return readRaw(path, decode.toGray)
+function M.readRGB(bound, path)
+  return readImport(bound, path, decode.toRGB, "rgb", decode.pack)
+end
+
+function M.readGray(bound, path)
+  return readImport(bound, path, decode.toGray, "gray", decode.luma)
 end
 
 --- Shared writer. `fetch(pixel)` returns r, g, b.

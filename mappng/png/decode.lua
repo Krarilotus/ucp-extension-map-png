@@ -450,12 +450,12 @@ local function convert(png, combine)
   return result
 end
 
-local function luma(r, g, b)
+function M.luma(r, g, b)
   if r == g and g == b then return r end
   return floor(0.299 * r + 0.587 * g + 0.114 * b + 0.5)
 end
 
-local function pack(r, g, b)
+function M.pack(r, g, b)
   return (r << 16) | (g << 8) | b
 end
 
@@ -465,12 +465,12 @@ end
 --- that value; other colours use the usual brightness weights
 --- (0.299 r + 0.587 g + 0.114 b).
 function M.toGray(png)
-  return { width = png.width, height = png.height, gray = convert(png, luma) }
+  return { width = png.width, height = png.height, gray = convert(png, M.luma) }
 end
 
 --- Turns a decoded PNG into { width, height, rgb } with packed 0xRRGGBB.
 function M.toRGB(png)
-  return { width = png.width, height = png.height, rgb = convert(png, pack) }
+  return { width = png.width, height = png.height, rgb = convert(png, M.pack) }
 end
 
 return M
