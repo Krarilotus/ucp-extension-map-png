@@ -51,7 +51,7 @@ function M.load(files,sizes)
     images[key] = { buffer = buffer, pixels = ffi.cast("unsigned short *", buffer), width=size.width,height=size.height }
   end
   state.images = images
-  log(INFO, "map-png: loaded supplied button images (" .. suffix .. ")")
+  log(INFO, "loaded supplied button images (" .. suffix .. ")")
 end
 
 function M.draw(key, rendering, x, y)

@@ -94,7 +94,7 @@ end
 function M.readRGB(bound, path)
   local ok, image = pcall(readRaw, path, decode.toRGB)
   if ok then return image end
-  log(WARNING, string.format("map-png: own PNG reader failed (%s), using GDI+ for %s",
+  log(WARNING, string.format("own PNG reader failed (%s), using GDI+ for %s",
     tostring(image), path))
   return readGdiplus(bound, path)
 end

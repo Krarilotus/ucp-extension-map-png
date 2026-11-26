@@ -88,8 +88,8 @@ function M.initialize(ffi, game)
   if gotCodepage and ({[1250]=true,[1251]=true,[1252]=true,[1254]=true,
       [1256]=true,[936]=true,[65001]=true})[nativeCodepage] then codepage = nativeCodepage end
   paths.setGameCodepage(codepage)
-  log(INFO, "map-png: dialog language " .. language .. " (" .. source .. "), codepage " .. codepage)
-  if source == "English fallback" then log(WARNING, "map-png: game language unavailable or unsupported") end
+  log(INFO, "dialog language " .. language .. " (" .. source .. "), codepage " .. codepage)
+  if source == "English fallback" then log(WARNING, "game language unavailable or unsupported") end
 end
 
 function M.action(mode, what)

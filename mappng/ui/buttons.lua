@@ -87,7 +87,7 @@ end
 --- Logs a step marker during the first few calls of a callback.
 local function trace(key, step)
   if (state.calls[key] or 0) < M.TRACED_CALLS then
-    log(INFO, string.format("map-png: [%s #%d] %s", key, (state.calls[key] or 0) + 1, step))
+    log(INFO, string.format("[%s #%d] %s", key, (state.calls[key] or 0) + 1, step))
   end
 end
 
@@ -100,7 +100,7 @@ local function guarded(key, body)
       local count = (state.failures[key] or 0) + 1
       state.failures[key] = count
       if count <= M.LOGGED_FAILURES then
-        log(ERROR, string.format("map-png: %s failed (%d): %s", key, count, tostring(err)))
+        log(ERROR, string.format("%s failed (%d): %s", key, count, tostring(err)))
       end
     end
   end
@@ -284,7 +284,7 @@ function M.install(ffi, game, onClick)
         if entry.screen == screen then
           local item = menu.menuItems[entry.itemIndex]
           log(INFO, string.format(
-            "map-png: item [%d] type=0x%X pos=(%d,%d) size=%dx%d renderType=%d render=0x%X action=0x%X",
+            "item [%d] type=0x%X pos=(%d,%d) size=%dx%d renderType=%d render=0x%X action=0x%X",
             entry.itemIndex, tonumber(item.menuItemType),
             tonumber(item.position.position.x), tonumber(item.position.position.y),
             tonumber(item.itemWidth), tonumber(item.itemHeight),
@@ -296,12 +296,12 @@ function M.install(ffi, game, onClick)
 
       local first = screens.iconPosition(screen, 1, layout)
       log(INFO, string.format(
-        "map-png: added 5 buttons to menu %d (%s), first at menu-local (%d,%d), layout %s from %s",
+        "added 5 buttons to menu %d (%s), first at menu-local (%d,%d), layout %s from %s",
         screen.menuID, screen.name, first.x, first.y, layout.key, layout.source))
     end)
 
     if not ok then
-      log(ERROR, string.format("map-png: could not add buttons to menu %d (%s): %s",
+      log(ERROR, string.format("could not add buttons to menu %d (%s): %s",
         screen.menuID, screen.name, tostring(err)))
     end
   end

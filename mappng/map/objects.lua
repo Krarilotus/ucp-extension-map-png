@@ -74,7 +74,7 @@ function M.open(core, ffi, view, native)
     if not zeroSizedTree and (size<1 or size>13) then
       -- Seen in real maps (likely objects placed by other modules). Keep the
       -- object on its own tile rather than failing the whole import.
-      log(WARNING,string.format('map-png: %s %d (type %s) has footprint size %d; using its own tile only',
+      log(WARNING,string.format('%s %d (type %s) has footprint size %d; using its own tile only',
         object.kind,object.id,tostring(object.type),size))
       assert(x>=0 and x<400 and y>=0 and y<400,'map-png: object outside map')
       if at[y*400+x] then add(object,at[y*400+x]) end

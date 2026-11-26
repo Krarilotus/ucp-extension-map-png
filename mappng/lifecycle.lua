@@ -31,7 +31,7 @@ function M.initialize(ffi,folder)
     if not text and paths.exists(legacy) then text=paths.readBinary(legacy,1024*1024) end
     if text then state.links.restore(json:decode(text)) end
   end)
-  if not ok then log(WARNING,'map-png: ignored invalid link index: '..tostring(err)) end
+  if not ok then log(WARNING,'ignored invalid link index: '..tostring(err)) end
   local getName=ffi.cast('char * (__thiscall *)(void *)',bindings.resourceName)
   local function identity()
     local name=ffi.string(getName(ffi.cast('void *',bindings.resource)))
@@ -63,7 +63,7 @@ function M.initialize(ffi,folder)
           -- Detach on uncertain lifecycle state. Never refresh stale map links.
           state.pendingLoad=nil; state.pendingSave=nil
           state.links.open(nil)
-          log(WARNING,'map-png: link lifecycle '..name..': '..tostring(err))
+          log(WARNING,'link lifecycle '..name..': '..tostring(err))
         end
       end
       return registers
@@ -74,7 +74,7 @@ end
 function M.link(kind,name)
   if not state.enabled then return end
   local ok,err=pcall(state.links.link,kind,name)
-  if not ok then log(WARNING,'map-png: PNG imported, but link could not be saved: '..tostring(err)) end
+  if not ok then log(WARNING,'PNG imported, but link could not be saved: '..tostring(err)) end
 end
 function M.available() return state.enabled end
 function M.names() return state.enabled and state.links.names() or {} end

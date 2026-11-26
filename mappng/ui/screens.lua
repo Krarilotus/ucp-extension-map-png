@@ -181,7 +181,7 @@ function M.setOffset(menuID, dx, dy)
   local buttons = require("mappng.ui.buttons")
   buttons.reposition(menuID)
 
-  log(INFO, string.format("map-png: menu %d offset set to (%d,%d)",
+  log(INFO, string.format("menu %d offset set to (%d,%d)",
     menuID, screen.offset.x, screen.offset.y))
   return screen.offset
 end
@@ -201,7 +201,7 @@ function M.probe(menuID)
   menuID = menuID or 17
   local layout = M.currentLayout()
   log(INFO, string.format(
-    "map-png: layout %s (from %s): preview %dx%d centred (%d,%d), %s",
+    "layout %s (from %s): preview %dx%d centred (%d,%d), %s",
     layout.key, layout.source, layout.half * 2, layout.half * 2,
     layout.centreX, layout.centreY, layout.hidden and "HIDDEN" or "shown"))
 
@@ -221,7 +221,7 @@ function M.dump(menuID)
   local Menu = modules.ui:access().api.ui.Menu
   local menu = Menu:fromID(menuID)
 
-  log(INFO, string.format("map-png: menu %d has %d items", menuID, menu.menuItemsCount))
+  log(INFO, string.format("menu %d has %d items", menuID, menu.menuItemsCount))
   for i = 0, menu.menuItemsCount - 1 do
     local item = menu.menuItems[i]
     log(INFO, string.format(

@@ -27,7 +27,7 @@ local state = {}
 local function onClick(mode, what)
   if mode=='refresh' then
     local ok,err=pcall(lifecycle.refresh)
-    if not ok then log(ERROR,'map-png: refresh failed: '..tostring(err)) end
+    if not ok then log(ERROR,'refresh failed: '..tostring(err)) end
     return
   end
   filedialog.pick(mode, what, nil, function(name)
@@ -39,9 +39,9 @@ local function onClick(mode, what)
 
     if ok then
       if mode=='import' then lifecycle.link(what,name) end
-      log(INFO, string.format("map-png: %s %s -> %s", mode, what, tostring(result)))
+      log(INFO, string.format("%s %s -> %s", mode, what, tostring(result)))
     else
-      log(ERROR, string.format("map-png: %s %s failed: %s", mode, what, tostring(result)))
+      log(ERROR, string.format("%s %s failed: %s", mode, what, tostring(result)))
     end
     return ok, result
   end)
@@ -63,21 +63,21 @@ function mappng:enable(config)
   state.png = gdiplus.initialize(ffi)
 
   actions.initialize(ffi, state.png, state.options)
-  log(INFO, string.format("map-png: using %s", actions.folder()))
+  log(INFO, string.format("using %s", actions.folder()))
 
   hooks.registerHookCallback("afterInit", function()
     -- The section table is static data, so this is valid from process start.
     local ok, base, build = pcall(tilemap.resolveBase, core)
     if ok then
-      log(INFO, string.format("map-png: %s, TileMapState at 0x%X", build, base))
+      log(INFO, string.format("%s, TileMapState at 0x%X", build, base))
     else
-      log(WARNING, string.format("map-png: map layers not found: %s", tostring(base)))
+      log(WARNING, string.format("map layers not found: %s", tostring(base)))
     end
 
     -- Do not install unusable controls or touch layout globals on another build.
     screens.configure(ok and require('mappng.native').resolve().preview or nil)
     if not ok then
-      log(WARNING, "map-png: native PNG controls unavailable on this executable")
+      log(WARNING, "native PNG controls unavailable on this executable")
       return
     end
 
@@ -86,11 +86,11 @@ function mappng:enable(config)
     local ui = modules.ui:access()
     filedialog.initialize(ffi, ui, state.png)
     local linked, err = pcall(lifecycle.initialize, ffi, actions.folder())
-    if not linked then log(WARNING, "map-png: linked refresh unavailable: " .. tostring(err)) end
+    if not linked then log(WARNING, "linked refresh unavailable: " .. tostring(err)) end
     local game = ui.game
     local added = buttons.install(ffi, game, onClick)
     if added == 0 then
-      log(WARNING, "map-png: no buttons were added; see the errors above")
+      log(WARNING, "no buttons were added; see the errors above")
     end
   end)
 end

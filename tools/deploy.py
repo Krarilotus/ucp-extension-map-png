@@ -120,7 +120,7 @@ def main():
 
     print("\nNow: launch 'Stronghold Crusader.exe' (not Extreme), open the map")
     print("editor, and check ucp3.log next to the exe for")
-    print("  'map-png: added 4 buttons to menu ...'")
+    print("  '[map-png]: added 5 buttons to menu ...'")
 
 
 if __name__ == "__main__":

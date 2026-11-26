@@ -251,7 +251,7 @@ class TestButtonsInstall(ButtonsBase):
 
     def test_install_logs_what_the_game_will_read(self):
         self.install()
-        items = [m for m in self.logged("INFO") if "map-png: item [" in m]
+        items = [m for m in self.logged("INFO") if "item [" in m]
         self.assertEqual(len(items), 5)
         self.assertIn("type=0x3", items[0])
 

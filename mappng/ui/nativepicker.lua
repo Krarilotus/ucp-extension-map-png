@@ -16,7 +16,7 @@ local function guard(fn)
     local ok, err = pcall(fn, ...)
     if not ok and not state.failed then
       state.failed = true
-      log(ERROR, "map-png: PNG dialog: " .. tostring(err))
+      log(ERROR, "PNG dialog: " .. tostring(err))
     end
   end
 end
@@ -66,7 +66,7 @@ local function refreshPreview(name)
     if not name then state.exportPreview = result end
   else
     state.previewError = i18n.message("invalid")
-    log(WARNING, "map-png: PNG preview: " .. tostring(result))
+    log(WARNING, "PNG preview: " .. tostring(result))
   end
 end
 

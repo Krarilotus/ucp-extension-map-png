@@ -129,7 +129,7 @@ function M.importLinked(names)
   local report = reports.terrain
   if report and report.unknownColours > 0 then
     log(WARNING, string.format(
-      'map-png: %d pixel(s) in %s did not match any terrain colour and were left '
+      '%d pixel(s) in %s did not match any terrain colour and were left '
       .. 'as empty ground; first at pixel %d, colour #%06X',
       report.unknownColours, resolved.terrain, report.unknownSample.pixel, report.unknownSample.colour))
   end
