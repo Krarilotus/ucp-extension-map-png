@@ -21,6 +21,8 @@
 
 local M = {}
 
+local redrawMinimap
+
 --- Marks every tile as changed and asks the game to rebuild its derived layers.
 ---
 ---@param view table result of tilemap.open()
@@ -42,8 +44,15 @@ function M.invalidate(view, options)
     end
   end
 
-  -- Re-project the map, which is what actually redraws the minimap preview.
+  -- Re-project the map view.
   flags.futureMapOrientation[0] = flags.mapOrientation[0]
+
+  -- Redraw the minimap as the editor's land tools do.
+  local minimap = require('mappng.native').resolve().minimap
+  if minimap then
+    redrawMinimap = redrawMinimap or core.exposeCode(minimap.redraw, 2, 1)
+    redrawMinimap(minimap.state, 2)
+  end
 end
 
 return M

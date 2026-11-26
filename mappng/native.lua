@@ -21,6 +21,8 @@ M.patterns = {
   landscape = '53 55 56 8B 74 24 10 69 F6 9C 00 00 00 8B 86 I(? ? ? ?) 0F BF 9E ? ? ? ?',
   shape = '8B 94 00 I(? ? ? ?) 03 C0 89 91 8C 49 55 00 8B 90 ? ? ? ? 89 91 90 49 55 00',
   units = 'C7 05 I(? ? ? ?) I(? ? ? ?) C7 05 ? ? ? ? ? ? ? ? C7 05 ? ? ? ? ? ? ? ? C7 86 70 F0 53 00',
+  -- `push edi / mov ecx, MinimapViewState / call triggerMinimapRedraw / mov eax, 2000`
+  minimap = '57 B9 I(? ? ? ?) E8 I(? ? ? ?) B8 D0 07 00 00 B9',
   -- map-extensions owns the read/write entry hooks and allocation sizes.
   -- Observe inside the original body, after its trampoline rejoins execution.
   loadBegin = '89 44 24 14 89 5E 20 E8 ? ? ? ? 83 C4 04 3B C3 89 46 10',
@@ -53,7 +55,7 @@ function M.resolve()
   if cached then return cached end
   local found = {}
   for name, pattern in pairs(M.patterns) do
-    if not LINKS[name] then found[name] = find(name, pattern) end
+    if not LINKS[name] and name ~= 'minimap' then found[name] = find(name, pattern) end
   end
   local r = {functions={}, ui={}}
   r.sections=found.sections[1]
@@ -74,6 +76,16 @@ function M.resolve()
   r.unitCapacity=found.units[3]
   assert(r.unitCapacity>0 and r.unitCapacity<=10000,'map-png: unknown unit capacity')
   r.rowY, r.rows, r.shapes=found.wall[2], found.wall[3], found.shape[2]
+  -- The editor's land tools redraw the minimap through this trigger. Without
+  -- it, imports still work and only the minimap keeps its old image.
+  local redraw, redrawError = pcall(function()
+    local site = find('minimap', M.patterns.minimap)
+    assert(site[2]==r.base-0x61BF8, 'map-png: unknown minimap layout')
+    local rel=site[3]
+    if rel>=0x80000000 then rel=rel-0x100000000 end
+    r.minimap = {state=site[2], redraw=site[1]+11+rel}
+  end)
+  if not redraw then log(WARNING, 'map-png: minimap redraw off: '..tostring(redrawError)) end
   -- Linked refresh is optional; plain PNG import/export does not need its sites.
   local linked, linkError = pcall(function()
     local links = {}

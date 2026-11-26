@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.10 — test candidate
+
+- Redraw the minimap after a PNG import, as the editor's land tools do.
+  If the game's minimap redraw is not found, imports still work and the
+  minimap updates after reopening the map.
+
 ## 0.2.9 — test candidate
 
 - Keep the PNG link index in the UCP user data folder. An index left in the

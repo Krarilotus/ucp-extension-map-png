@@ -80,10 +80,12 @@ class NativeDiscovery(unittest.TestCase):
         self.assertEqual(r.preview.previewSuppressed,r.base+0x554AB4)
         self.assertEqual(r.preview.multiplayerLayout,r.base+0x55603C)
         self.assertEqual(r.preview.mapSize,r.base+0x554A0C)
+        self.assertEqual((r.minimap.state,r.minimap.redraw),(0x1A31610,0x4B5300))
 
     def test_extreme(self):
         lua,r=self.resolve('Stronghold_Crusader_Extreme.exe')
         self.assertEqual(r.base,0x2526708)
+        self.assertEqual((r.minimap.state,r.minimap.redraw),(0x24C4B10,0x4B5470))
         self.assertEqual(r.preview.previewSuppressed,r.base+0x554AB4)
         self.assertEqual(r.preview.multiplayerLayout,r.base+0x55603C)
         self.assertEqual(r.preview.mapSize,r.base+0x554A0C)
