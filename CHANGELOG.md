@@ -1,5 +1,58 @@
 # Changelog
 
+## 0.2.8 — test candidate
+
+- Read terrain PNGs and their picker preview with the own decoder, so colour
+  profiles no longer change terrain colours. GDI+ remains the fallback for
+  terrain files it cannot read.
+- Store imported ground at exactly height 80 or 130 as mid or high plateau,
+  as the editor's land tool does, so plain earth on plateaus keeps its look.
+- Keep an object with an unsupported footprint size on its own tile and log
+  it, instead of failing the import.
+
+## 0.2.3 — test candidate
+
+- Import and preview 400×400 grayscale, grayscale with alpha, indexed, RGB
+  and RGBA height PNGs at their standard bit depths, including Adam7 images.
+  Preserve 8-bit gray values, scale other depths to the height range and
+  convert colour to brightness. Ignore colour profiles and alpha in heightmaps.
+- Validate PNG chunks and zlib checksums, bound decoding and reject malformed
+  heightmaps before the import can change the map.
+- Include the footprint for active trees with a stored size of zero when
+  checking objects affected by an editor import.
+
+## 0.2.2 — save/load compatibility
+
+- Correct the native resource path getter on UCP 3.0.7. Its relative AOB
+  capture landed five bytes early in the map save/load callbacks. The
+  editor-map, ordinary-save and custom-trail cases still require live checks.
+
+## 0.2.1 — test candidate
+
+- Fix missing controls with map-extensions: observe map load/save inside the
+  original functions, away from shared entry hooks and allocation patches.
+  Discovery regression tests cover patched normal and Extreme executables.
+- Retain objects across compatible height changes, using native building height
+  limits and rocky/marsh/moat permissions. Check new or worsened cliff edges
+  around the final masked footprints; recheck after connected removals.
+- Keep resource requirements, native connected teardown, rubble suppression and
+  unit-preservation guards. Include the failing binding name in startup errors.
+- UI 1.0.1 is unchanged. Live acceptance is still pending; this is an unsigned
+  test build, not a verified safe import workflow for arbitrary populated maps.
+
+## 0.2.0 — release candidate
+
+- Refresh linked height/terrain PNGs with a fifth native minimap button; show
+  linked filenames beside it. Links persist in a separate JSON sidecar, never
+  in the game's map format. Missing files invalidate their links.
+- Stage both PNGs before one shared import transaction. Preserve compatible
+  objects and mask their occupied tiles. Remove conflicting connected structures
+  through native teardown, without rubble or unit deletion.
+- Replace fixed-address picker/map discovery and the version allowlist with
+  shared UCP AoB bindings and independent map-layout checks. Executable-backed
+  discovery tests cover normal and Extreme. Live acceptance is still pending.
+
+
 ## 0.1.2 — 2026-09-11
 
 - Add approved GPLv3 code license, corresponding-source information and retained

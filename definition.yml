@@ -1,10 +1,11 @@
 name: map-png
 display-name: Map PNG
-version: 0.1.2
+version: 0.2.8
 author: Krarilotus
 type: module
 dependencies:
   framework: ">= 3.0.7"
+  frontend: ">= 1.0.2"
   ui: ">= 1.0.1"
   cffi: "^1.0.0"
   luajit: "^1.0.0"

@@ -24,7 +24,8 @@ class TestScreens(unittest.TestCase):
         values = {SUPPRESSED: suppressed, MULTIPLAYER: multiplayer, MAP_SIZE: size}
         self.lua.globals().core = self.lua.table(
             readInteger=lambda address: values.get(int(address), 0))
-        self.screens.setGlobalsAvailable(True)
+        self.screens.configure(self.lua.table(previewSuppressed=SUPPRESSED,
+            multiplayerLayout=MULTIPLAYER, mapSize=MAP_SIZE))
 
     def row(self, layout=None):
         return [self.screens.iconPosition(self.screen, i, layout) for i in range(1, 5)]
@@ -43,6 +44,14 @@ class TestScreens(unittest.TestCase):
         row = self.row(layout)
         self.assertEqual([p["x"] for p in row], [278, 342, 406, 470])
         self.assertEqual({p["y"] for p in row}, {348})
+
+    def test_refresh_is_below_last_button_in_both_layouts(self):
+        for mp in (0,1):
+            self.game(multiplayer=mp)
+            last=self.screens.buttonBounds(self.screen,4)
+            refresh=self.screens.buttonBounds(self.screen,5)
+            self.assertEqual(refresh.x,last.x)
+            self.assertEqual(refresh.y,last.y+last.height+self.screens.BUTTON_GAP)
 
     def test_multiplayer_400_shifts_right_by_200(self):
         self.game(multiplayer=1, size=400)
@@ -101,7 +110,7 @@ class TestScreens(unittest.TestCase):
         """Other builds: nothing is read, and nothing is hidden."""
         self.lua.globals().core = self.lua.table(
             readInteger=lambda address: (_ for _ in ()).throw(AssertionError("read")))
-        self.screens.setGlobalsAvailable(False)
+        self.screens.configure(None)
 
         layout = self.screens.currentLayout()
         self.assertEqual(layout["source"], "default")

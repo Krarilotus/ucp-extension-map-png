@@ -1,114 +1,108 @@
--- Live editor cleanup, not sourcehold-style section zeroing. Normal 1.41 only.
--- Native teardown owns footprint, owner and linked-record bookkeeping.
-local M = {}
-M.WALL_MASK = 0x00410B00 -- mask cleared by spawnEraserTileEffect
-M.BINDINGS = {
-  building = {0x421990, 0x748B5655},
-  tree = {0x4F2070, 0x7C8B5756},
-  rock = {0x4F2220, 0x24748B56},
-  wall = {0x4F9F00, 0x748B5655},
-}
+-- Selective native teardown; never clear whole record tables or erase units.
+local objects = require('mappng.map.objects')
+local planner = require('mappng.map.importplan')
+local bindings = require('mappng.native')
+local M = {WALL_MASK=objects.WALL_MASK}
 
--- Kept separate from FFI so ordering and fail-closed behavior are testable.
-function M.execute(adapter)
-  adapter.preflight() -- read-only; must finish before the first deletion
-  for _, kind in ipairs({'building', 'tree', 'rock'}) do
-    for id = 1, adapter.capacity[kind] - 1 do
-      -- Deleting a linked building can already have deleted a later record.
-      if adapter.active(kind, id) then adapter.remove(kind, id) end
+function M.execute(adapter, plan)
+  adapter.preflight(plan)
+  for _, kind in ipairs({'building','tree','rock'}) do
+    for id=1,adapter.capacity[kind]-1 do
+      if plan.remove[kind..':'..id] and adapter.active(kind,id) then adapter.remove(kind,id) end
     end
   end
-  for tile = 0, adapter.tileCount - 1 do
-    if adapter.wall(tile) then adapter.removeWall(tile) end
+  for tile=0,adapter.tileCount-1 do
+    if plan.remove['wall:'..tile] and adapter.wall(tile) then adapter.removeWall(tile) end
   end
-  adapter.verify()
+  adapter.verify(plan)
 end
 
-function M.prepare(core, ffi, view)
-  assert(view.build == 'Crusader 1.41' and view.base == 0x1A93208,
-    'map-png: cleanup is only supported on Crusader 1.41')
-  local native = {}
-  for name, spec in pairs(M.BINDINGS) do
-    assert((core.readInteger(spec[1]) & 0xFFFFFFFF) == spec[2],
-      'map-png: unrecognized native cleanup function: ' .. name)
-    native[name] = ffi.cast(name == 'wall'
-      and 'void (__thiscall *)(void *, int, int)'
-      or 'void (__thiscall *)(void *, int)', spec[1])
+function M.prepare(core, ffi, view, proposed)
+  assert(proposed, 'map-png: staged import required for selective cleanup')
+  local native=bindings.resolve()
+  assert(view.base==native.base, 'map-png: inconsistent native map layout')
+  local a=objects.open(core,ffi,view,native)
+  local plan=planner.build(view.layers,proposed,a.objects,a.tileCount,a.neighbours,a.placement)
+  local calls={}
+  for name,address in pairs(native.functions) do
+    calls[name]=ffi.cast(name=='wall' and 'void (__thiscall *)(void *, int, int)'
+      or 'void (__thiscall *)(void *, int)',address)
   end
-  local bases = {building=0xF98520, tree=0xF2CC38, rock=0xF2CC38}
-  local records = {
-    building={offset=0x14, stride=0x32C, active=0xD0},
-    tree={offset=0x1C, stride=0x9C, active=0x44},
-    rock={offset=0x4C2F8, stride=0x20, active=0xC},
-  }
-  local a = {capacity={building=2000, tree=2000, rock=4000}, tileCount=80400}
-  local function short(address) return core.readSmallInteger(address) end
-  local function record(kind, id)
-    local r = records[kind]
-    return bases[kind] + r.offset + id * r.stride
+  local states, retainedTiles={},{}
+  local function unitState(id) return core.readSmallInteger(native.units+0x614+id*0x490+0x8C) end
+  function a.preflight(selection)
+    for key in pairs(selection.remove) do
+      local object=a.objects[key]
+      -- Siege machines are unit-backed buildings; native teardown would remove
+      -- their unit. Never delete a unit through the building interface.
+      assert(object.kind~='building' or not (object.type==69 or
+        (object.type>=80 and object.type<=90)), 'map-png: import conflicts with a siege unit')
+      if object.kind=='wall' then
+        assert(a.units[object.id]==0,'map-png: move units off conflicting walls before importing')
+      else
+        assert(a.active(object.kind,object.id) and a.identity(object.kind,object.id)==object.uid,
+          'map-png: object changed during import planning')
+      end
+    end
+    for id=0,native.unitCapacity-1 do states[id]=unitState(id) end
+    for tile in pairs(selection.mask) do
+      retainedTiles[tile]={a.buildings[tile],a.landscape[tile],a.misc[tile],a.was[tile],a.damage[tile]}
+    end
   end
-  function a.active(kind, id) return short(record(kind, id) + records[kind].active) ~= 0 end
-  local buildings = ffi.cast('uint16_t *', view.base + 0x2029B0)
-  local landscape = ffi.cast('uint16_t *', view.base + 0x1DB590)
-  local units = ffi.cast('uint16_t *', view.base + 0x23D7E0)
-  local misc = ffi.cast('uint16_t *', view.base + 0x301C80)
-  -- Native destroyEntitiesOnTile schedules decorations (types 10..15) for
-  -- deletion and clears their display flag. Eraser effects expire normally.
-  function a.wall(tile)
-    return (view.layers.logic1[tile] & M.WALL_MASK) ~= 0 or (misc[tile] & 0x1000) ~= 0
-  end
-  local unitStates = {}
-  function a.preflight()
-    -- updateBuildings (0x422E20) periodically resets this high-water mark to
-    -- zero, then raises it to highest active ID + 1. It is NOT allocation size:
-    -- an empty map changes from the initial 2000 to 0 after entering map view.
-    local buildingScanLimit = core.readInteger(0xF98528)
-    assert(buildingScanLimit >= 0 and buildingScanLimit <= a.capacity.building,
-      'map-png: invalid building scan limit: ' .. tostring(buildingScanLimit))
-    for kind, count in pairs(a.capacity) do
-      assert(not a.active(kind, 0), 'map-png: occupied sentinel record')
-      for id = 1, count - 1 do
-        if kind == 'building' and buildingScanLimit == 0 then
-          assert(not a.active(kind, id),
-            'map-png: zero building scan limit with active record ' .. id)
+  local rubblePrepared=false
+  function a.remove(kind,id)
+    if kind~='building' then calls[kind](ffi.cast('void *',a.bases[kind]),id); return end
+    -- Native destruction handles linked duplicates and resets its global switch.
+    if not rubblePrepared then
+      for key in pairs(plan.remove) do
+        local object=a.objects[key]
+        if object.kind=='building' and a.active('building',object.id) then
+          core.writeSmallInteger(a.record('building',object.id)+0xC4,0)
         end
-        if a.active(kind, id) and kind ~= 'building' then
-          local offset = kind == 'tree' and 0x68 or 4
-          local tile = core.readInteger(record(kind, id) + offset)
-          assert(tile >= 0 and tile < a.tileCount, 'map-png: invalid landscape tile')
+      end
+      rubblePrepared=true
+    end
+    local saved=core.readInteger(native.noRubble)
+    core.writeInteger(native.noRubble,1)
+    local ok,err=pcall(calls.building,ffi.cast('void *',a.bases.building),id)
+    core.writeInteger(native.noRubble,saved)
+    if not ok then error(err,0) end
+  end
+  function a.removeWall(tile) calls.wall(ffi.cast('void *',view.base),0,tile) end
+  function a.verify(selection)
+    for tile,values in pairs(retainedTiles) do
+      assert(a.buildings[tile]==values[1] and a.landscape[tile]==values[2]
+        and a.misc[tile]==values[3] and a.was[tile]==values[4] and a.damage[tile]==values[5],
+        'map-png: native cleanup changed a retained footprint; PNG not applied')
+    end
+    for key,object in pairs(a.objects) do
+      if object.kind~='wall' then
+        if selection.remove[key] then
+          assert(not a.active(object.kind,object.id),'map-png: native cleanup left an active '..object.kind)
+        else
+          assert(a.active(object.kind,object.id) and a.identity(object.kind,object.id)==object.uid,
+            'map-png: native cleanup changed a retained object; PNG not applied')
         end
       end
     end
-    for tile = 0, a.tileCount - 1 do
-      assert(buildings[tile] < 2000, 'map-png: invalid building reference')
-      -- Native wall erasure returns early on unit-occupied tiles. Never hide
-      -- units temporarily or use the full brush (which marks units deleted).
-      assert(not (a.wall(tile) and units[tile] ~= 0),
-        'map-png: move units off structures/walls before importing')
-    end
-    for id = 0, 2499 do
-      unitStates[id] = short(0x1387F38 + 0x614 + id * 0x490 + 0x8C)
-    end
-  end
-  function a.remove(kind, id) native[kind](ffi.cast('void *', bases[kind]), id) end
-  function a.removeWall(tile) native.wall(ffi.cast('void *', view.base), 0, tile) end
-  function a.verify()
-    for kind, count in pairs(a.capacity) do
-      for id = 1, count - 1 do
-        assert(not a.active(kind, id), 'map-png: native cleanup left an active ' .. kind)
+    for key in pairs(selection.remove) do
+      local object=a.objects[key]
+      for _,tile in ipairs(object.tiles) do
+        assert(a.buildings[tile]==0 and a.landscape[tile]==0 and not a.wall(tile),
+          'map-png: native cleanup left an object footprint; PNG not applied')
+        if object.kind=='building' then
+          -- Clear ruins only on the erased footprint, never neighbouring ruins.
+          a.misc[tile]=a.misc[tile]&0x9FFF
+          a.was[tile]=0; a.damage[tile]=0
+        end
       end
     end
-    for tile = 0, a.tileCount - 1 do
-      assert(buildings[tile] == 0 and landscape[tile] == 0 and not a.wall(tile),
-        'map-png: native cleanup left an object footprint; PNG was not applied')
-    end
-    for id = 0, 2499 do
-      assert(unitStates[id] == short(0x1387F38 + 0x614 + id * 0x490 + 0x8C),
-        'map-png: unexpected unit-state change; PNG was not applied')
+    for id=0,native.unitCapacity-1 do
+      assert(states[id]==unitState(id),'map-png: unexpected unit-state change; PNG not applied')
     end
   end
-  -- Validate before handing control to the destructive phase.
-  a.preflight()
-  return function() M.execute(a) end
+  a.preflight(plan)
+  planner.mask(plan,view.layers,proposed)
+  return function() M.execute(a,plan) end
 end
 return M

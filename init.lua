@@ -1,7 +1,7 @@
 --- map-png
 ---
---- Import and export the live Stronghold Crusader map as PNG files, from four
---- buttons under the minimap on the map editor screen.
+--- Import and export the live Stronghold Crusader map as PNG files, with linked
+--- refresh under the minimap on the map editor screen.
 ---
 --- This replaces shelling out to `sourcehold memory map get/set`: that tool has
 --- to attach to the game from outside with pymem, which is why it needs Python,
@@ -17,23 +17,20 @@ local screens = require("mappng.ui.screens")
 local icons = require("mappng.ui.icons")
 local buttons = require("mappng.ui.buttons")
 local filedialog = require("mappng.ui.filedialog")
+local lifecycle = require('mappng.lifecycle')
 
 local mappng = {}
 
 local state = {}
 
---- The build the button layout globals were read from.
-local LAYOUT_BUILD = "Crusader 1.41"
-
---- Reads the current map name, for the default file name in the save dialog.
---- TODO(discovery): read it from MapPropertiesState instead of guessing.
-local function currentMapName()
-  return nil
-end
-
 --- Runs one of the four actions: ask for a name, then do the work.
 local function onClick(mode, what)
-  filedialog.pick(mode, what, currentMapName(), function(name)
+  if mode=='refresh' then
+    local ok,err=pcall(lifecycle.refresh)
+    if not ok then log(ERROR,'map-png: refresh failed: '..tostring(err)) end
+    return
+  end
+  filedialog.pick(mode, what, nil, function(name)
     if name == nil then
       return
     end
@@ -41,6 +38,7 @@ local function onClick(mode, what)
     local ok, result = pcall(actions.run, mode, what, name)
 
     if ok then
+      if mode=='import' then lifecycle.link(what,name) end
       log(INFO, string.format("map-png: %s %s -> %s", mode, what, tostring(result)))
     else
       log(ERROR, string.format("map-png: %s %s failed: %s", mode, what, tostring(result)))
@@ -77,17 +75,17 @@ function mappng:enable(config)
     end
 
     -- Do not install unusable controls or touch layout globals on another build.
-    local layoutKnown = ok and build == LAYOUT_BUILD
-    screens.setGlobalsAvailable(layoutKnown)
-    if not layoutKnown then
-      log(WARNING, "map-png: native PNG controls require " .. LAYOUT_BUILD)
+    screens.configure(ok and require('mappng.native').resolve().preview or nil)
+    if not ok then
+      log(WARNING, "map-png: native PNG controls unavailable on this executable")
       return
     end
 
     icons.load()
 
     local ui = modules.ui:access()
-    if layoutKnown then filedialog.initialize(ffi, ui, state.png) end
+    filedialog.initialize(ffi, ui, state.png)
+    lifecycle.initialize(ffi,actions.folder())
     local game = ui.game
     local added = buttons.install(ffi, game, onClick)
     if added == 0 then
@@ -97,6 +95,7 @@ function mappng:enable(config)
 end
 
 function mappng:disable()
+  lifecycle.disable()
   buttons.disable()
   filedialog.cancel()
   icons.unload()

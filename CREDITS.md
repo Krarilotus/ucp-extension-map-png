@@ -23,6 +23,10 @@ research remains with their authors; this module does not claim their work.
 
 ## Adapted code, data and research references
 
+- **Monsterfisch** — native save/load path fix and raw PNG height decoding.
+  The Lua inflate code adapts **Mark Adler**'s puff 2.3. The original notice
+  is included in `licenses/puff-zlib.txt`.
+  https://github.com/madler/zlib/tree/v1.3.1/contrib/puff
 - **Gynt and sourcehold contributors** — map-layer research, tile-coordinate
   translation reference and terrain logic tables:
   https://github.com/sourcehold/sourcehold-maps . `mappng/map/palette.lua` ports
@@ -50,6 +54,9 @@ confirmed by Krarilotus). The creator-v2 PNGs were supplied by Krarilotus in
 `ucp modding on streoids (2).zip`. Original pixels are preserved in
 `resources/icons/creator-v2/`; runtime versions crop transparent padding, scale
 2x by nearest-neighbor and threshold alpha for the native TGX format.
+The separately supplied refresh illustration is preserved as
+`resources/icons/creator-v2/refresh_import.png` and receives the same exact-pixel
+treatment for the fifth button; no AI redraw is used.
 
 Contact **Monsterfish_** for an easy-to-edit offline Photoshop template.
 

@@ -6,13 +6,16 @@
 ---   grayscale  { width, height, gray = <0-based 0..255> }
 ---   colour     { width, height, rgb  = <0-based packed 0xRRGGBB> }
 ---
---- Everything goes through 32bppARGB, which is the one format GDI+ will convert
---- any input PNG into for us -- palette, 16-bit, greyscale, with or without an
---- alpha channel. Alpha is discarded on read and written as opaque.
+--- Imports read the raw PNG samples, without colour management. Terrain
+--- imports fall back to GDI+'s 32bppARGB conversion when the file cannot be
+--- decoded that way; exports use GDI+. Alpha is ignored and exports are opaque.
 ---
 --- NOT YET VERIFIED IN GAME -- see mappng/png/gdiplus.lua.
 
 local gdiplus = require("mappng.png.gdiplus")
+local decode = require("mappng.png.decode")
+local paths = require("mappng.paths")
+local diamond = require("mappng.map.diamond")
 
 local M = {}
 
@@ -22,12 +25,12 @@ local function check(status, what)
   end
 end
 
---- Reads a PNG into a flat 0-based array of packed 0xRRGGBB values.
----
----@param bound table result of gdiplus.initialize()
----@param path string
----@return table image { width, height, rgb }
-function M.readRGB(bound, path)
+local function readRaw(path, convert)
+  local data = paths.readBinary(path, decode.FILE_LIMIT)
+  return convert(decode.decodeBytes(data, diamond.SIZE))
+end
+
+local function readGdiplus(bound, path)
   local ffi = bound.ffi
   local gdi = bound.gdiplus
 
@@ -85,20 +88,23 @@ function M.readRGB(bound, path)
   return result
 end
 
---- Reads a PNG as grayscale. Uses the green channel, matching OpenCV's
---- behaviour closely enough for the grayscale PNGs sourcehold writes; a true
---- grayscale source has r == g == b anyway.
+--- Reads a PNG into a flat 0-based array of packed 0xRRGGBB values.
 ---
+---@param bound table result of gdiplus.initialize()
+---@param path string
+---@return table image { width, height, rgb }
+function M.readRGB(bound, path)
+  local ok, image = pcall(readRaw, path, decode.toRGB)
+  if ok then return image end
+  log(WARNING, string.format("map-png: own PNG reader failed (%s), using GDI+ for %s",
+    tostring(image), path))
+  return readGdiplus(bound, path)
+end
+
+--- Reads a heightmap without colour management or decoder fallback.
 ---@return table image { width, height, gray }
-function M.readGray(bound, path)
-  local image = M.readRGB(bound, path)
-
-  local gray = {}
-  for pixel = 0, (image.width * image.height) - 1 do
-    gray[pixel] = (image.rgb[pixel] >> 8) & 0xFF
-  end
-
-  return { width = image.width, height = image.height, gray = gray }
+function M.readGray(path)
+  return readRaw(path, decode.toGray)
 end
 
 --- Shared writer. `fetch(pixel)` returns r, g, b.
