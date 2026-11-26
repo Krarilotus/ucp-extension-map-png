@@ -28,7 +28,8 @@ M.patterns = {
   loadBegin = '89 44 24 14 89 5E 20 E8 ? ? ? ? 83 C4 04 3B C3 89 46 10',
   loadDone = '89 5E 10 8B 15 ? ? ? ? 83 C4 08 39 1D ? ? ? ? 89 1D ? ? ? ?',
   saveBegin = '89 44 24 1C 89 7E 20 89 6C 24 18 89 7C 24 14 89 7E 0C 89 7E 28 89 3B',
-  saveDone = '83 C4 30 C7 46 10 00 00 00 00 5F 5E 5D 5B 83 C4 10 C2 04 00',
+  -- Autosave can detour the following seven epilogue bytes.
+  saveDone = '83 C4 30 C7 46 10 00 00 00 00 ? ? ? ? ? ? ? C2 04 00',
   newMap = '53 55 56 8B F1 57 33 FF 89 BE 1C 29 55 00 89 BE 20 29 55 00',
   -- UCP 3.0.7's @() reads the correct operand but omits the opcode's offset
   -- from the result. Capture the displacement with I() on all framework builds.

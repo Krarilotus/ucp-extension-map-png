@@ -45,7 +45,14 @@ function M.initialize(ffi,folder)
       -- failure returns. Header-only preview loading uses a different function.
       state.links.open(state.pendingLoad); state.pendingLoad=nil
     end,
-    saveBegin=function() state.pendingSave=identity() end,
+    saveBegin=function()
+      local autosave=modules and modules.autosave
+      if autosave and autosave.isSavingEditorMap and autosave:isSavingEditorMap() then
+        state.pendingSave=nil
+      else
+        state.pendingSave=identity()
+      end
+    end,
     saveDone=function()
       -- Normal write/close path, not the allocation/open failure returns.
       if state.pendingSave then state.links.saved(state.pendingSave) end
