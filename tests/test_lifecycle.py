@@ -16,15 +16,22 @@ class Lifecycle(unittest.TestCase):
           INFO=1; WARNING=2; log=function(_,text) warnings[#warnings+1]=text end
           package.loaded['mappng.paths']={
             resolve=function(folder,name) assert(not name:find('%.%.')); return name end,
-            exists=function(name) return name:find('json') and sidecar~=nil or files[name] end,
-            writeAtomic=function(_,data) if writeFail then error('disk failure') end; sidecar=data end,
-            readBinary=function() return sidecar end,
+            exists=function(name) return files[name] end,
             fromGameText=function(name) return name end,
             mapIdentity=function(name) if identityFail then error('identity failure') end; return name:match('%.map$') and name or nil end,
           }
           local sites={newMap=1,loadBegin=2,loadDone=3,saveBegin=4,saveDone=5}
           package.loaded['mappng.native']={resolve=function() return {hooks=sites,resource=10,resourceName=11} end}
           package.loaded['mappng.actions']={importLinked=function(names) imported=names end}
+          local staged
+          userdata={interface=function() return {
+            open=function(_,name,mode)
+              if mode=='rb' then return sidecar and {read=function() return sidecar end,close=function() end} end
+              return {write=function(_,data) if writeFail then return nil,'disk failure' end; staged=data; return true end,
+                close=function() end}
+            end,
+            rename=function() sidecar=staged; return true end,
+          } end}
           core={detourCode=function(callback,address,span) callbacks[address]=callback; installs=installs+1 end}
           ffi={cast=function(kind,value) if value==11 then return function() return filename end end; return value end,
             string=function(value) return value end}

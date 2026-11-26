@@ -10,7 +10,7 @@ Activate the module to use it; there are no customization-menu controls. The
 default terrain palette is lossless. Imports preserve compatible objects and
 mask their occupied tiles. Conflicting structures are removed with native
 teardown, without rubble; units are not deleted. Layer-only undo is unavailable.
-Linked filenames persist in `mapping/map-png-links.json` for saved maps. Missing
+Linked filenames persist in the UCP user data folder for saved maps. Missing
 images invalidate their links. Native `.map` files are not modified to store links.
 The picker's Open folder button opens this mapping directory in Windows.
 Height import and preview preserve stored grayscale values and convert colour

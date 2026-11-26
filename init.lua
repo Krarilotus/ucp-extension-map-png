@@ -85,7 +85,8 @@ function mappng:enable(config)
 
     local ui = modules.ui:access()
     filedialog.initialize(ffi, ui, state.png)
-    lifecycle.initialize(ffi,actions.folder())
+    local linked, err = pcall(lifecycle.initialize, ffi, actions.folder())
+    if not linked then log(WARNING, "map-png: linked refresh unavailable: " .. tostring(err)) end
     local game = ui.game
     local added = buttons.install(ffi, game, onClick)
     if added == 0 then

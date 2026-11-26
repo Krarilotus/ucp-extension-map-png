@@ -11,14 +11,25 @@ function M.initialize(ffi,folder)
     state.enabled=true; return
   end
   local bindings=native.resolve()
-  local sidecar=folder..'\\map-png-links.json'
+  assert(bindings.hooks,bindings.linkError)
+  local store=assert(userdata.interface(),'map-png: user data folder unavailable')
   local function exists(name) return paths.exists(paths.resolve(folder,name)) end
   state.links=model.new(function(data)
-    paths.writeAtomic(sidecar,json:encode(data))
+    local file=assert(store:open('links.json.tmp','wb'))
+    local written,err=file:write(json:encode(data))
+    file:close()
+    assert(written,err)
+    assert(store:rename('links.json.tmp','links.json'))
   end,function(name) return pcall(paths.resolve,folder,name) end,exists)
-  if paths.exists(sidecar) then
-    local ok,err=pcall(function() state.links.restore(json:decode(paths.readBinary(sidecar,1024*1024))) end)
-    if not ok then log(WARNING,'map-png: ignored invalid link sidecar: '..tostring(err)) end
+  -- Earlier versions kept the index beside the PNGs; it is read, never written.
+  local legacy=folder..'\\map-png-links.json'
+  local file=store:open('links.json','rb')
+  local text=file and file:read('*a')
+  if file then file:close() end
+  if not text and paths.exists(legacy) then text=paths.readBinary(legacy,1024*1024) end
+  if text then
+    local ok,err=pcall(function() state.links.restore(json:decode(text)) end)
+    if not ok then log(WARNING,'map-png: ignored invalid link index: '..tostring(err)) end
   end
   local getName=ffi.cast('char * (__thiscall *)(void *)',bindings.resourceName)
   local function identity()

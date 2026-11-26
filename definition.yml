@@ -1,10 +1,10 @@
 name: map-png
 display-name: Map PNG
-version: 0.2.8
+version: 0.2.9
 author: Krarilotus
 type: module
 dependencies:
-  framework: ">= 3.0.7"
+  framework: ">= 3.0.8"
   frontend: ">= 1.0.2"
   ui: ">= 1.0.1"
   cffi: "^1.0.0"

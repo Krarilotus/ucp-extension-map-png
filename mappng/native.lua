@@ -32,21 +32,27 @@ M.patterns = {
   -- from the result. Capture the displacement with I() on all framework builds.
   resource = 'B9 I(? ? ? ?) E8 I(? ? ? ?) 53 68 00 80 00 00 50 E8 ? ? ? ? 8B F8 83 CD FF',
 }
+local LINKS = {loadBegin=true, loadDone=true, saveBegin=true, saveDone=true, newMap=true, resource=true}
+local function find(name, pattern)
+  -- AOBExtract in framework 3.0.7 expects at least one capture (including in
+  -- its diagnostic formatter); plain function signatures use core.AOBScan.
+  local ok, result = pcall(function()
+    return pattern:find('(',1,true) and {utils.AOBExtract(pattern)} or {core.AOBScan(pattern)}
+  end)
+  assert(ok, 'map-png: native binding '..name..' failed: '..tostring(result))
+  assert(result[1], 'map-png: native binding unavailable: '..name)
+  assert(core.scanForAOB((pattern:gsub('I%(', ''):gsub('%)', '')), result[1] + 1) == nil,
+    'map-png: native binding ambiguous: '..name)
+  return result
+end
 local cached
 function M.resolve()
   if cached then return cached end
   local found = {}
   for name, pattern in pairs(M.patterns) do
-    -- AOBExtract in framework 3.0.7 expects at least one capture (including in
-    -- its diagnostic formatter); plain function signatures use core.AOBScan.
-    local ok, result = pcall(function()
-      return pattern:find('(',1,true) and {utils.AOBExtract(pattern)} or {core.AOBScan(pattern)}
-    end)
-    assert(ok, 'map-png: native binding '..name..' failed: '..tostring(result))
-    found[name] = result
-    assert(found[name][1], 'map-png: native binding unavailable: '..name)
+    if not LINKS[name] then found[name] = find(name, pattern) end
   end
-  local r = {functions={}, hooks={},ui={}}
+  local r = {functions={}, ui={}}
   r.sections=found.sections[1]
   r.placement=found.placement[2]-0x5DC
   assert(found.placement[3]==r.placement+0x794,'map-png: unknown building placement layout')
@@ -65,17 +71,24 @@ function M.resolve()
   r.unitCapacity=found.units[3]
   assert(r.unitCapacity>0 and r.unitCapacity<=10000,'map-png: unknown unit capacity')
   r.rowY, r.rows, r.shapes=found.wall[2], found.wall[3], found.shape[2]
-  local rel=found.resource[3]
-  if rel>=0x80000000 then rel=rel-0x100000000 end
-  r.resource, r.resourceName=found.resource[2],found.resource[1]+10+rel
-  -- The getter indexes the resource manager's path array and returns its
-  -- current path. Verify the full leaf, including its argument-free return.
-  local getter = {0x8B,0x81,0xC4,0x0B,0,0,0x69,0xC0,0xE9,0x03,0,0,
-    0x8D,0x84,0x08,0xE0,0xAE,0x07,0,0xC3}
-  for i,b in ipairs(getter) do
-    assert(core.readByte(r.resourceName+i-1)==b,'map-png: unknown file name getter')
-  end
-  for _, name in ipairs({'loadBegin','loadDone','saveBegin','saveDone','newMap'}) do r.hooks[name]=found[name][1] end
+  -- Linked refresh is optional; plain PNG import/export does not need its sites.
+  local linked, linkError = pcall(function()
+    local links = {}
+    for name in pairs(LINKS) do links[name] = find(name, M.patterns[name]) end
+    local rel=links.resource[3]
+    if rel>=0x80000000 then rel=rel-0x100000000 end
+    r.resource, r.resourceName=links.resource[2],links.resource[1]+10+rel
+    -- The getter indexes the resource manager's path array and returns its
+    -- current path. Verify the full leaf, including its argument-free return.
+    local getter = {0x8B,0x81,0xC4,0x0B,0,0,0x69,0xC0,0xE9,0x03,0,0,
+      0x8D,0x84,0x08,0xE0,0xAE,0x07,0,0xC3}
+    for i,b in ipairs(getter) do
+      assert(core.readByte(r.resourceName+i-1)==b,'map-png: unknown file name getter')
+    end
+    r.hooks = {}
+    for _, name in ipairs({'loadBegin','loadDone','saveBegin','saveDone','newMap'}) do r.hooks[name]=links[name][1] end
+  end)
+  if not linked then r.hooks, r.linkError = nil, linkError end
   cached=r
   return r
 end

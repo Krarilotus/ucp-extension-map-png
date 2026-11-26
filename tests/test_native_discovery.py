@@ -7,11 +7,11 @@ import unittest
 import lua_harness
 from test_tilemap_binary import GAME_DIR, PEImage
 
-FRAMEWORK = Path(os.environ.get('MAPPNG_UCP_CODE',
-    'S:/Projects/UCP/UnofficialCrusaderPatch3/content/ucp/code'))
+FRAMEWORK = Path(os.environ.get('MAPPNG_UCP_CODE', ''))
 
 
-@unittest.skipUnless((FRAMEWORK / 'utils.lua').exists(), 'UCP source fixture absent')
+@unittest.skipUnless(os.environ.get('MAPPNG_UCP_CODE') and (FRAMEWORK / 'utils.lua').exists(),
+                     'UCP source fixture absent')
 class NativeDiscovery(unittest.TestCase):
     def resolve(self, filename, patches=None):
         path = GAME_DIR / filename
@@ -27,16 +27,20 @@ class NativeDiscovery(unittest.TestCase):
                         break
                 else: self.fail('patch outside image')
         lua = lua_harness.runtime()
-        def scan(pattern, *unused):
+        def matches(pattern):
             regex = re.compile(b''.join(b'.' if t == '?' else re.escape(bytes([int(t,16)]))
                 for t in pattern.split()), re.DOTALL)
-            matches=[]
-            for address, size, raw_size, offset in pe.sections:
-                matches += [address+m.start() for m in regex.finditer(pe.data[offset:offset+raw_size])]
-            if len(matches)!=1: raise AssertionError(f'{len(matches)} matches: {pattern}')
-            return matches[0]
+            return [address+m.start() for address, size, raw_size, offset in pe.sections
+                    for m in regex.finditer(pe.data[offset:offset+raw_size])]
+        def scan(pattern, *unused):
+            found=matches(pattern)
+            if len(found)!=1: raise AssertionError(f'{len(found)} matches: {pattern}')
+            return found[0]
+        def again(pattern, start, *unused):
+            return next((address for address in matches(pattern) if address >= start), None)
         core = lua.table_from({
             'AOBScan':scan,
+            'scanForAOB':again,
             'readByte':lambda a: pe.read(a,1)[0],
             'readInteger':lambda a: struct.unpack('<i', pe.read(a,4))[0],
             'readSmallInteger':lambda a: struct.unpack('<h', pe.read(a,2))[0],
@@ -101,8 +105,8 @@ class NativeDiscovery(unittest.TestCase):
         lua=lua_harness.runtime()
         lua.execute("core={AOBScan=function() error('not found') end}; utils={}")
         native=lua_harness.load(lua,'mappng.native')
-        native.patterns=lua.table_from({'loadBegin':'AA BB CC'})
-        with self.assertRaisesRegex(Exception,'native binding loadBegin failed:.*not found'):
+        native.patterns=lua.table_from({'banner':'AA BB CC'})
+        with self.assertRaisesRegex(Exception,'native binding banner failed:.*not found'):
             native.resolve()
 
     def test_detours_cover_whole_non_branching_instructions(self):
