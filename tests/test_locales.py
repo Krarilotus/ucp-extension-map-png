@@ -27,9 +27,10 @@ class TestLocales(unittest.TestCase):
             self.assertTrue(previews[0][1].endswith('/resources/store-preview.png'), lang)
             self.assertTrue((ROOT / 'resources/store-preview.png').is_file())
             self.assertNotIn('mapping/', description)
-            self.assertIn("Monsterfish_", description, lang)
-            self.assertIn("Photoshop", description, lang)
             self.assertNotIn("\ufffd", text + description)
+        credits = (ROOT / "CREDITS.md").read_text(encoding="utf-8")
+        self.assertIn("Monsterfish_", credits)
+        self.assertIn("Photoshop", credits)
 
     def test_options_use_the_gui_schema_and_real_module_keys(self):
         data = yaml.safe_load((ROOT / "options.yml").read_text(encoding="utf-8"))

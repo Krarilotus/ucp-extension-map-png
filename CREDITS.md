@@ -69,3 +69,5 @@ for this release is resolved; attribution and the template contact remain.
 On 2026-09-11, Krarilotus relayed gynt's clarification that sourcehold is GPLv3
 and approved GPLv3 for Map PNG's code. See LICENSE and COPYING.md. The conflicting
 MIT package classifier is not relied upon. Both licensing gates are resolved.
+
+Contact Monsterfish_ for the editable Photoshop template for the buttons.
