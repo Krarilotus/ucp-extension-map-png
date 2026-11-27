@@ -5,6 +5,7 @@ local model=require('mappng.links')
 local native=require('mappng.native')
 local M={}
 local state={enabled=false}
+local PATH_SLOT_SIZE=0x3E9
 function M.initialize(folder)
   if state.installed then
     state.links.open(nil); state.pendingLoad=nil; state.pendingSave=nil
@@ -36,8 +37,11 @@ function M.initialize(folder)
   local function identity()
     local address=getName(bindings.resource)
     if address==0 then return nil end
-    local name=core.readString(address,0x3E9):match('^([^%z]*)%z')
-    if not name then return nil end
+    -- Recorder can redirect the getter to a shorter, NUL-terminated buffer.
+    local length=0
+    while length<PATH_SLOT_SIZE and core.readByte(address+length)~=0 do length=length+1 end
+    if length==0 or length==PATH_SLOT_SIZE then return nil end
+    local name=core.readString(address,length)
     return paths.mapIdentity(paths.fromGameText(name))
   end
   local callbacks={

@@ -36,7 +36,8 @@ class Lifecycle(unittest.TestCase):
           core={
             detourCode=function(callback,address,span) callbacks[address]=callback; installs=installs+1 end,
             exposeCode=function() return function() return 12 end end,
-            readString=function() return filename..'\0' end,
+            readByte=function(address) return (filename..'\0'):byte(address-11) end,
+            readString=function(_,length) return filename:sub(1,length) end,
           }
           lifecycle=require('mappng.lifecycle'); lifecycle.initialize('mapping')
           function event(name)
