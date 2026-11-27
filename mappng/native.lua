@@ -94,11 +94,23 @@ function M.resolve()
     end
     local owner = modules and modules['map-extensions']
     if owner and type(owner.getNativeSaveInterface) == 'function' then
-      local save = owner:getNativeSaveInterface()
-      assert(save.version == 1 and save.resources and save.resourceFileName,
-        'map-png: unsupported Map Extensions save interface')
-      r.resource, r.resourceName = save.resources, save.resourceFileName
-    else
+      local ok, resource, resourceName = pcall(function()
+        local save = owner:getNativeSaveInterface()
+        assert(type(save) == 'table' and save.version == 1,
+          'map-png: unsupported Map Extensions save interface')
+        local manager, getter = save.resources, save.resourceFileName
+        assert(math.type(manager) == 'integer' and manager > 0 and manager <= 0xffffffff
+          and math.type(getter) == 'integer' and getter > 0 and getter <= 0xffffffff,
+          'map-png: invalid Map Extensions filename binding')
+        return manager, getter
+      end)
+      if ok then
+        r.resource, r.resourceName = resource, resourceName
+      else
+        log(WARNING, 'Map Extensions filename binding unavailable: '..tostring(resource))
+      end
+    end
+    if not r.resource then
       local site = bind('resource')
       r.resource = core.readInteger(site + 1)
       r.resourceName = site + 10 + core.readInteger(site + 6)
