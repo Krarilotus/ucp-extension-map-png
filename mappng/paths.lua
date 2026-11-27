@@ -145,6 +145,17 @@ function M.openFolder(path)
   return true
 end
 
+local function isReservedStem(stem)
+  return stem == "CON" or stem == "PRN" or stem == "AUX" or stem == "NUL"
+    or stem:match("^COM[1-9]$") or stem:match("^LPT[1-9]$")
+end
+
+function M.isFolderName(folder)
+  return type(folder) == "string" and folder ~= ""
+    and not folder:match('[%z\1-\31\\/:*?"<>|]') and not folder:match("[ .]$")
+    and not isReservedStem((folder:match("^[^.]+") or ""):upper())
+end
+
 --- Resolves `<game>/<folder>/` without creating it.
 ---
 --- Only a single, non-nested folder name is accepted. The value comes from
@@ -154,12 +165,12 @@ end
 ---@param folder string|nil defaults to "mapping"
 ---@return string absolute path, without a trailing separator
 function M.pngFolder(folder)
-  folder = folder or M.DEFAULT_FOLDER
+  if folder == nil then folder = M.DEFAULT_FOLDER end
 
-  if folder == "" or folder:match("[\\/:]") or folder == "." or folder == ".." then
+  if not M.isFolderName(folder) then
     error(string.format(
       "map-png: '%s' is not a usable folder name; it must be a single name "
-      .. "directly inside the game directory", folder))
+      .. "directly inside the game directory", tostring(folder)))
   end
 
   return M.gameDirectory() .. "\\" .. folder
@@ -193,8 +204,7 @@ function M.resolve(folder, name, extension)
 
   local stem = (name:match("^([^.]+)") or ""):upper()
   if stem == "" then error("map-png: no file name given") end
-  if stem == "CON" or stem == "PRN" or stem == "AUX" or stem == "NUL"
-    or stem:match("^COM[1-9]$") or stem:match("^LPT[1-9]$") then
+  if isReservedStem(stem) then
     error("map-png: reserved file name")
   end
 

@@ -11,6 +11,7 @@
 
 local gdiplus = require("mappng.png.gdiplus")
 local paths = require("mappng.paths")
+local palette = require("mappng.map.palette")
 local actions = require("mappng.actions")
 local tilemap = require("mappng.map.tilemap")
 local screens = require("mappng.ui.screens")
@@ -48,44 +49,63 @@ local function onClick(mode, what)
 end
 
 function mappng:enable(config)
+  if config ~= nil and type(config) ~= "table" then
+    log(ERROR, "Map PNG settings must be a table; using defaults.")
+    config = nil
+  end
   config = config or {}
 
-  state.options = {
-    folder = config["mapping-folder"] or paths.DEFAULT_FOLDER,
-    paletteName = config["palette"] or "mappng",
-  }
+  local folder = config["mapping-folder"]
+  if folder ~= nil and not paths.isFolderName(folder) then
+    log(type(folder) == "string" and WARNING or ERROR,
+      "Invalid Map PNG mapping-folder; using " .. paths.DEFAULT_FOLDER .. ".")
+    folder = nil
+  end
+  local paletteName = config.palette
+  if paletteName ~= nil and (type(paletteName) ~= "string" or not palette.palettes[paletteName]) then
+    log(type(paletteName) == "string" and WARNING or ERROR,
+      "Invalid Map PNG palette; using " .. palette.DEFAULT_PALETTE .. ".")
+    paletteName = nil
+  end
 
   ---@type CFFIInterface
-  local ffi = modules.cffi:cffi()
-  state.ffi = ffi
-
-  paths.initialize(ffi)
-  state.png = gdiplus.initialize(ffi)
-
-  actions.initialize(ffi, state.png, state.options)
-  log(INFO, string.format("using %s", actions.folder()))
+  local ffi
+  local ready, reason = pcall(function()
+    ffi = modules.cffi:cffi()
+    paths.initialize(ffi)
+    state.png = gdiplus.initialize(ffi)
+    actions.initialize(ffi, state.png, {folder = folder, paletteName = paletteName})
+    log(INFO, string.format("using %s", actions.folder()))
+  end)
+  if not ready then
+    gdiplus.shutdown(state.png)
+    state.png = nil
+    log(ERROR, "PNG map editor controls are off: " .. tostring(reason))
+    return
+  end
 
   hooks.registerHookCallback("afterInit", function()
-    local ready, reason = pcall(function()
+    local ready, game = pcall(function()
       local base, build = tilemap.resolveBase(core)
       icons.load()
       screens.configure(require('mappng.native').resolve().preview)
+      local ui = modules.ui:access()
+      filedialog.initialize(ffi, ui, state.png)
       log(INFO, string.format("%s, TileMapState at 0x%X", build, base))
+      return ui.game
     end)
     if not ready then
-      log(ERROR, "PNG map editor controls are off: " .. tostring(reason))
+      log(ERROR, "PNG map editor controls are off: " .. tostring(game))
       return
     end
-
-    local ui = modules.ui:access()
-    filedialog.initialize(ffi, ui, state.png)
     local linked, err = pcall(lifecycle.initialize, actions.folder())
     if not linked then
       log(ERROR, "Automatic refresh of linked PNG maps is off: " .. tostring(err))
     end
-    local game = ui.game
-    local added = buttons.install(ffi, game, onClick)
-    if added == 0 then
+    local installed, added = pcall(buttons.install, ffi, game, onClick)
+    if not installed then
+      log(ERROR, "PNG map editor controls are off: " .. tostring(added))
+    elseif added == 0 then
       log(WARNING, "no buttons were added; see the errors above")
     end
   end)
