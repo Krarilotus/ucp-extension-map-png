@@ -4,7 +4,7 @@ local M = {}
 M.patterns = {
   placement = '8B 0C 85 I(? ? ? ?) 89 8E 58 49 55 00 53 B9 ? ? ? ? E8 ? ? ? ? 8B 14 85 I(? ? ? ?) 53 B9 ? ? ? ? 89 96 64 49 55 00',
   preview = '83 3D I(? ? ? ?) FF 0F 85 ? ? ? ? 39 2D I(? ? ? ?) 53 8B 1D ? ? ? ? 75 ? 81 C3 90 01 00 00 EB ? 81 C3 58 02 00 00 8B 35 ? ? ? ? 8B 3D I(? ? ? ?) 81 C6 F0 00 00 00',
-  sections = '? ? ? ? 00 00 00 00 20 74 02 00 01 00 E9 03 ? ? ? ? 00 00 00 00 20 74 02 00 01 00 09 04 ? ? ? ? 00 00 00 00 20 74 02 00 01 00 EA 03',
+  sections = '68 23 04 00 00 68 ? ? ? ? B9 ? ? ? ? E8 ? ? ? ? 83 3D',
   banner = '83 44 24 08 08 53 8B 5C 24 08 55 8B 6C 24 14 83 C3 08 83 ED 10 56 33 C0 57',
   inputRender = 'A1 ? ? ? ? 8B 0D ? ? ? ? 8B 15 ? ? ? ? 56 57 6A 05 03 C8 51 8B 0D ? ? ? ? 03 D1 52 50 51 B9 ? ? ? ? E8 ? ? ? ? B9 ? ? ? ?',
   rowBackground = '8B 0D ? ? ? ? 56 57 0F BE 7C 24 10 83 E7 01 03 FF 83 CF 45 83 7C 24 0C 00',
@@ -35,19 +35,13 @@ M.patterns = {
 }
 local LINKS = {loadBegin=true, loadDone=true, saveBegin=true, saveDone=true, newMap=true, resource=true}
 local function find(name, pattern)
-  -- The AOB cache can hold a later match; core.scanForAOB is uncached and
-  -- returns the first match in the image. AOBExtract needs a capture, so it
-  -- reads only captured patterns, at that first match.
   local aob = pattern:gsub('I%(', ''):gsub('%)', '')
-  local ok, result = pcall(function()
-    local first = core.scanForAOB(aob)
-    if not first or not pattern:find('(',1,true) then return {first} end
-    return {utils.AOBExtract(pattern, first, first)}
-  end)
-  assert(ok, 'map-png: native binding '..name..' failed: '..tostring(result))
-  assert(result[1], 'map-png: native binding unavailable: '..name)
-  assert(core.scanForAOB(aob, result[1] + 1) == nil, 'map-png: native binding ambiguous: '..name)
-  return result
+  local site, reason = core.AOBScanUnique(aob)
+  assert(site, 'map-png: native binding '..name..': '..tostring(reason))
+  if pattern:find('(', 1, true) then
+    return {utils.AOBExtract(pattern, site, site)}
+  end
+  return {site}
 end
 local cached
 function M.resolve()
@@ -57,7 +51,7 @@ function M.resolve()
     if not LINKS[name] and name ~= 'minimap' then found[name] = find(name, pattern) end
   end
   local r = {functions={}, ui={}}
-  r.sections=found.sections[1]
+  r.sections=core.readInteger(found.sections[1]+6)
   r.placement=found.placement[2]-0x5DC
   assert(found.placement[3]==r.placement+0x794,'map-png: unknown building placement layout')
   r.preview={previewSuppressed=found.preview[2],multiplayerLayout=found.preview[3],mapSize=found.preview[4]}
@@ -85,16 +79,10 @@ function M.resolve()
     r.minimap = {state=site[2], redraw=site[1]+11+rel}
   end)
   if not redraw then
-    log(ERROR, "Minimap refresh after PNG import is off.")
-    log(WARNING, tostring(redrawError))
+    log(ERROR, "Minimap refresh after PNG import is off: "..tostring(redrawError))
   end
   -- Linked refresh is optional; plain PNG import/export does not need its sites.
   local linked, linkError = pcall(function()
-    local function bind(name)
-      local site, reason = core.AOBScanUnique(M.patterns[name])
-      assert(site, 'map-png: native binding '..name..': '..tostring(reason))
-      return site
-    end
     local owner = modules and modules['map-extensions']
     if owner and type(owner.getNativeSaveInterface) == 'function' then
       local ok, resource, resourceName = pcall(function()
@@ -114,7 +102,7 @@ function M.resolve()
       end
     end
     if not r.resource then
-      local site = bind('resource')
+      local site = find('resource', M.patterns.resource)[1]
       r.resource = core.readInteger(site + 1)
       r.resourceName = site + 10 + core.readInteger(site + 6)
       -- The getter indexes the resource manager's 1001-byte path slots.
@@ -125,7 +113,7 @@ function M.resolve()
       end
     end
     r.hooks = {}
-    for _, name in ipairs({'loadBegin','loadDone','saveBegin','saveDone','newMap'}) do r.hooks[name]=bind(name) end
+    for _, name in ipairs({'loadBegin','loadDone','saveBegin','saveDone','newMap'}) do r.hooks[name]=find(name, M.patterns[name])[1] end
   end)
   if not linked then r.hooks, r.linkError = nil, linkError end
   cached=r

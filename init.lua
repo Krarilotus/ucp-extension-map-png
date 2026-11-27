@@ -66,29 +66,22 @@ function mappng:enable(config)
   log(INFO, string.format("using %s", actions.folder()))
 
   hooks.registerHookCallback("afterInit", function()
-    -- The section table is static data, so this is valid from process start.
-    local ok, base, build = pcall(tilemap.resolveBase, core)
-    if ok then
+    local ready, reason = pcall(function()
+      local base, build = tilemap.resolveBase(core)
+      icons.load()
+      screens.configure(require('mappng.native').resolve().preview)
       log(INFO, string.format("%s, TileMapState at 0x%X", build, base))
-    else
-      log(WARNING, string.format("map layers not found: %s", tostring(base)))
-    end
-
-    -- Do not install unusable controls or touch layout globals on another build.
-    screens.configure(ok and require('mappng.native').resolve().preview or nil)
-    if not ok then
-      log(ERROR, "PNG map editor controls are off. The game map layers could not be found.")
+    end)
+    if not ready then
+      log(ERROR, "PNG map editor controls are off: " .. tostring(reason))
       return
     end
-
-    icons.load()
 
     local ui = modules.ui:access()
     filedialog.initialize(ffi, ui, state.png)
     local linked, err = pcall(lifecycle.initialize, actions.folder())
     if not linked then
-      log(ERROR, "Automatic refresh of linked PNG maps is off.")
-      log(WARNING, tostring(err))
+      log(ERROR, "Automatic refresh of linked PNG maps is off: " .. tostring(err))
     end
     local game = ui.game
     local added = buttons.install(ffi, game, onClick)

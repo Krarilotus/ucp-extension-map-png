@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.11
+
+- Resolve editor and minimap code through the framework and check artwork before installing controls.
+- Bind the map section table through the game's section loader.
+
 ## 0.2.10 — test candidate
 
 - Redraw the minimap after a PNG import, as the editor's land tools do.

@@ -27,16 +27,13 @@ function M.validate(bytes, width, height)
 end
 
 function M.load(files,sizes)
-  local ffi = modules.cffi:cffi()
-  state.ffi = ffi
-  -- SHC 1.41: 0x0044D3D0, verified from renderGM's interface-image branch.
-  local address = core.AOBScan("55 8B EC 83 EC 28 53 56 57 89 4D E0 C7 45 F8 ? ? ? ? C7 45 EC ? ? ? ?")
-  assert(address, "map-png: native interface image renderer was not found")
-  state.draw = ffi.cast("void (__thiscall *)(void *, int, int, int, int, unsigned short *)", address)
-  local formatAddress = core.AOBScan("81 3D ? ? ? ? 65 05 00 00 75 40")
-  assert(formatAddress, "map-png: display pixel format was not found")
+  local address, rendererReason = core.AOBScanUnique(
+    "55 8B EC 83 EC 28 53 56 57 89 4D E0 C7 45 F8 ? ? ? ? C7 45 EC ? ? ? ?")
+  assert(address, "native interface image renderer: " .. tostring(rendererReason))
+  local formatAddress, formatReason = core.AOBScanUnique("81 3D ? ? ? ? 65 05 00 00 75 40")
+  assert(formatAddress, "display pixel format: " .. tostring(formatReason))
   local format = core.readInteger(core.readInteger(formatAddress + 2))
-  state.rgb565 = format == 0x565
+  local ffi = modules.cffi:cffi()
   local suffix = format == 0x565 and ".565.tgx" or ".555.tgx"
   local images = {}
   for key, path in pairs(files) do
@@ -50,6 +47,9 @@ function M.load(files,sizes)
     ffi.copy(buffer, bytes, #bytes)
     images[key] = { buffer = buffer, pixels = ffi.cast("unsigned short *", buffer), width=size.width,height=size.height }
   end
+  state.ffi = ffi
+  state.draw = ffi.cast("void (__thiscall *)(void *, int, int, int, int, unsigned short *)", address)
+  state.rgb565 = format == 0x565
   state.images = images
   log(INFO, "loaded supplied button images (" .. suffix .. ")")
 end
