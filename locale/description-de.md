@@ -1,7 +1,5 @@
-## Map PNG
+# Map PNG
 
-Höhenkarten und Gelände im Karteneditor als PNG importieren/exportieren. Verknüpfte PNGs mit einem Klick neu einlesen. Störende Objekte und Gebäude werden entfernt. Höhenkarten unterstützen Graustufen-, indizierte und RGB-PNGs, auch mit 16 Bit oder Interlaced.
+Importiere oder exportiere Gelände- und Höhenkarten als PNG über die Schaltflächen unter der Minikarte in den Karteneigenschaften des Karteneditors. Nutze Aktualisieren, um verknüpfte PNGs neu zu laden. Beim Import können Objekte entfernt werden, die mit dem neuen Gelände kollidieren.
 
-![PNG-Buttons im Karteneditor](https://raw.githubusercontent.com/Krarilotus/ucp-extension-map-png/v0.1.1-test.1/resources/store-preview.png)
-
-Button-Grafiken von Monsterfish_. Für eine einfach bearbeitbare Offline-Photoshop-Vorlage bitte Monsterfish_ kontaktieren.
+![PNG-Schaltflächen im Karteneditor](https://raw.githubusercontent.com/Krarilotus/ucp-extension-map-png/v0.1.1-test.1/resources/store-preview.png)

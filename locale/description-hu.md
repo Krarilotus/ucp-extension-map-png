@@ -1,7 +1,5 @@
-## Map PNG
+# Map PNG
 
-Magasságtérkép és terep importálása/exportálása PNG-ként a térképszerkesztőben. Kapcsolt PNG-k frissítése egy kattintással. Az ütköző objektumok és épületek törlődnek. A magasságtérképek szürkeárnyalatos, indexelt és RGB PNG-ket is fogadnak, 16 bites és váltottsoros változatban is.
+Importálj vagy exportálj terep- és magasságtérképeket PNG-ként a térképszerkesztő Térképtulajdonságok paneljén, a minitérkép alatti gombokkal. A Frissítés gombbal újratöltheted a csatolt PNG-ket. Az importálás eltávolíthatja az új tereppel ütköző objektumokat.
 
-![PNG-gombok a térképszerkesztőben](https://raw.githubusercontent.com/Krarilotus/ucp-extension-map-png/v0.1.1-test.1/resources/store-preview.png)
-
-Gombgrafika: Monsterfish_. Könnyen szerkeszthető, offline Photoshop-sablonért keresd Monsterfish_-t.
+![Térképszerkesztő PNG-gombok](https://raw.githubusercontent.com/Krarilotus/ucp-extension-map-png/v0.1.1-test.1/resources/store-preview.png)

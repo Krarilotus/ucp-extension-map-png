@@ -1,7 +1,5 @@
-## Map PNG
+# Map PNG
 
-Importa/exporta alturas y terreno como PNG en el editor de mapas. Actualiza los PNG vinculados con un clic. Se eliminan los objetos y estructuras incompatibles. Los mapas de altura admiten PNG en escala de grises, indexados y RGB, incluidos los de 16 bits y entrelazados.
+Importa o exporta mapas de terreno y altura como PNG usando los botones bajo el minimapa en Propiedades del mapa del editor. Usa Actualizar para recargar los PNG vinculados. Las importaciones pueden eliminar objetos incompatibles con el nuevo terreno.
 
-![Botones PNG del editor](https://raw.githubusercontent.com/Krarilotus/ucp-extension-map-png/v0.1.1-test.1/resources/store-preview.png)
-
-Ilustraciones de los botones de Monsterfish_. Contacta con Monsterfish_ para obtener una plantilla de Photoshop fácil de editar sin conexión.
+![Botones PNG del editor de mapas](https://raw.githubusercontent.com/Krarilotus/ucp-extension-map-png/v0.1.1-test.1/resources/store-preview.png)
