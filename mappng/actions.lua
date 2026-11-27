@@ -23,7 +23,7 @@ function M.initialize(ffi, gdiplusBound, options)
   state.png = gdiplusBound
   state.lookup = diamond.buildTileToPixel(diamond.SIZE)
   state.palette = paletteModule.resolve(options.paletteName or paletteModule.DEFAULT_PALETTE)
-  state.folder = paths.ensurePngFolder(options.folder)
+  state.folder = paths.pngFolder(options.folder)
   state.snapshots = {}
 end
 
@@ -155,6 +155,7 @@ end
 ---@param name string bare file name, without a path
 function M.exportHeight(name)
   local path = paths.resolve(state.folder, name)
+  paths.ensurePngFolder(state.folder)
   local image = height.export(view().layers, state.lookup, diamond.SIZE)
   png.writeGray(state.png, path, image)
   return path
@@ -167,6 +168,7 @@ end
 
 function M.exportTerrain(name)
   local path = paths.resolve(state.folder, name)
+  paths.ensurePngFolder(state.folder)
   local image = terrain.export(view().layers, state.lookup, state.palette, diamond.SIZE)
   png.writeRGB(state.png, path, image)
   return path

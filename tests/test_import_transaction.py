@@ -14,7 +14,7 @@ class ImportTransaction(unittest.TestCase):
           package.loaded['mappng.map.palette']={resolve=function() return {} end}
           package.loaded['mappng.map.tilemap']={open=function() return {layers=layers} end}
           package.loaded['mappng.map.refresh']={invalidate=function() event('refresh') end}
-          package.loaded['mappng.paths']={ensurePngFolder=function() return 'mapping' end,resolve=function(_,n) return n end}
+          package.loaded['mappng.paths']={pngFolder=function() return 'mapping' end,resolve=function(_,n) return n end}
           package.loaded['mappng.png']={readGray=function() event('decode'); return {} end,
             readRGB=function() event('decode'); return {} end}
           package.loaded['mappng.map.height']={import=function(s)

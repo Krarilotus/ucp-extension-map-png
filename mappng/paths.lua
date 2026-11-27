@@ -1,7 +1,6 @@
 --- mappng/paths.lua
 ---
---- Locates the game directory and the PNG folder inside it, creating the
---- latter if it is not there yet.
+--- Locates the game directory and the PNG folder inside it.
 ---
 --- The folder is deliberately a sibling of `ucp/` rather than something inside
 --- it: these are the user's own map PNGs, and a UCP reinstall should not touch
@@ -146,7 +145,7 @@ function M.openFolder(path)
   return true
 end
 
---- Ensures `<game>/<folder>/` exists and returns its absolute path.
+--- Resolves `<game>/<folder>/` without creating it.
 ---
 --- Only a single, non-nested folder name is accepted. The value comes from
 --- user options, and nothing downstream should be able to turn it into a path
@@ -154,7 +153,7 @@ end
 ---
 ---@param folder string|nil defaults to "mapping"
 ---@return string absolute path, without a trailing separator
-function M.ensurePngFolder(folder)
+function M.pngFolder(folder)
   folder = folder or M.DEFAULT_FOLDER
 
   if folder == "" or folder:match("[\\/:]") or folder == "." or folder == ".." then
@@ -163,15 +162,17 @@ function M.ensurePngFolder(folder)
       .. "directly inside the game directory", folder))
   end
 
-  local path = M.gameDirectory() .. "\\" .. folder
+  return M.gameDirectory() .. "\\" .. folder
+end
 
+function M.ensurePngFolder(path)
   if isDirectory(path) then
     return path
   end
 
   if state.kernel32.CreateDirectoryW(wide(path), nil) == 0 then
     local err = state.kernel32.GetLastError()
-    if err ~= ERROR_ALREADY_EXISTS then
+    if err ~= ERROR_ALREADY_EXISTS or not isDirectory(path) then
       error(string.format("map-png: cannot create %s (error %d)", path, tonumber(err)))
     end
   end

@@ -1,5 +1,6 @@
 -- The four operations share one native-styled PNG picker, not fixed paths.
 local actions = require("mappng.actions")
+local paths = require("mappng.paths")
 local native = require("mappng.ui.nativepicker")
 local M = { implemented = true }
 
@@ -11,7 +12,7 @@ function M.update() native.update() end
 function M.cancel() native.cancel() end
 
 function M.pick(mode, what, currentMapName, callback)
-  native.open(mode, what, actions.folder(), actions.defaultName(currentMapName, what), callback)
+  native.open(mode, what, paths.ensurePngFolder(actions.folder()), actions.defaultName(currentMapName, what), callback)
 end
 
 return M
