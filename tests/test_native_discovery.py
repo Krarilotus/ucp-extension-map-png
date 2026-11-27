@@ -40,6 +40,7 @@ class NativeDiscovery(unittest.TestCase):
             return next((address for address in matches(pattern) if address >= start), None)
         core = lua.table_from({
             'AOBScan':scan,
+            'AOBScanUnique':scan,
             'scanForAOB':again,
             'readByte':lambda a: pe.read(a,1)[0],
             'readInteger':lambda a: struct.unpack('<i', pe.read(a,4))[0],

@@ -5,7 +5,7 @@ local model=require('mappng.links')
 local native=require('mappng.native')
 local M={}
 local state={enabled=false}
-function M.initialize(ffi,folder)
+function M.initialize(folder)
   if state.installed then
     state.links.open(nil); state.pendingLoad=nil; state.pendingSave=nil
     state.enabled=true; return
@@ -32,9 +32,12 @@ function M.initialize(ffi,folder)
     if text then state.links.restore(json:decode(text)) end
   end)
   if not ok then log(WARNING,'ignored invalid link index: '..tostring(err)) end
-  local getName=ffi.cast('char * (__thiscall *)(void *)',bindings.resourceName)
+  local getName=core.exposeCode(bindings.resourceName,1,CallingConvention.THISCALL)
   local function identity()
-    local name=ffi.string(getName(ffi.cast('void *',bindings.resource)))
+    local address=getName(bindings.resource)
+    if address==0 then return nil end
+    local name=core.readString(address,0x3E9):match('^([^%z]*)%z')
+    if not name then return nil end
     return paths.mapIdentity(paths.fromGameText(name))
   end
   local callbacks={

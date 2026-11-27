@@ -31,9 +31,7 @@ M.patterns = {
   -- Autosave can detour the following seven epilogue bytes.
   saveDone = '83 C4 30 C7 46 10 00 00 00 00 ? ? ? ? ? ? ? C2 04 00',
   newMap = '53 55 56 8B F1 57 33 FF 89 BE 1C 29 55 00 89 BE 20 29 55 00',
-  -- UCP 3.0.7's @() reads the correct operand but omits the opcode's offset
-  -- from the result. Capture the displacement with I() on all framework builds.
-  resource = 'B9 I(? ? ? ?) E8 I(? ? ? ?) 53 68 00 80 00 00 50 E8 ? ? ? ? 8B F8 83 CD FF',
+  resource = 'B9 ? ? ? ? E8 ? ? ? ? 53 68 00 80 00 00 50 E8 ? ? ? ? 8B F8 83 CD FF',
 }
 local LINKS = {loadBegin=true, loadDone=true, saveBegin=true, saveDone=true, newMap=true, resource=true}
 local function find(name, pattern)
@@ -89,20 +87,30 @@ function M.resolve()
   if not redraw then log(WARNING, 'minimap redraw off: '..tostring(redrawError)) end
   -- Linked refresh is optional; plain PNG import/export does not need its sites.
   local linked, linkError = pcall(function()
-    local links = {}
-    for name in pairs(LINKS) do links[name] = find(name, M.patterns[name]) end
-    local rel=links.resource[3]
-    if rel>=0x80000000 then rel=rel-0x100000000 end
-    r.resource, r.resourceName=links.resource[2],links.resource[1]+10+rel
-    -- The getter indexes the resource manager's path array and returns its
-    -- current path. Verify the full leaf, including its argument-free return.
-    local getter = {0x8B,0x81,0xC4,0x0B,0,0,0x69,0xC0,0xE9,0x03,0,0,
-      0x8D,0x84,0x08,0xE0,0xAE,0x07,0,0xC3}
-    for i,b in ipairs(getter) do
-      assert(core.readByte(r.resourceName+i-1)==b,'map-png: unknown file name getter')
+    local function bind(name)
+      local site, reason = core.AOBScanUnique(M.patterns[name])
+      assert(site, 'map-png: native binding '..name..': '..tostring(reason))
+      return site
+    end
+    local owner = modules and modules['map-extensions']
+    if owner and type(owner.getNativeSaveInterface) == 'function' then
+      local save = owner:getNativeSaveInterface()
+      assert(save.version == 1 and save.resources and save.resourceFileName,
+        'map-png: unsupported Map Extensions save interface')
+      r.resource, r.resourceName = save.resources, save.resourceFileName
+    else
+      local site = bind('resource')
+      r.resource = core.readInteger(site + 1)
+      r.resourceName = site + 10 + core.readInteger(site + 6)
+      -- The getter indexes the resource manager's 1001-byte path slots.
+      local getter = {0x8B,0x81,0xC4,0x0B,0,0,0x69,0xC0,0xE9,0x03,0,0,
+        0x8D,0x84,0x08,0xE0,0xAE,0x07,0,0xC3}
+      for i,b in ipairs(getter) do
+        assert(core.readByte(r.resourceName+i-1)==b,'map-png: unknown file name getter')
+      end
     end
     r.hooks = {}
-    for _, name in ipairs({'loadBegin','loadDone','saveBegin','saveDone','newMap'}) do r.hooks[name]=links[name][1] end
+    for _, name in ipairs({'loadBegin','loadDone','saveBegin','saveDone','newMap'}) do r.hooks[name]=bind(name) end
   end)
   if not linked then r.hooks, r.linkError = nil, linkError end
   cached=r

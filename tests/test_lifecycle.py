@@ -32,10 +32,13 @@ class Lifecycle(unittest.TestCase):
             end,
             rename=function() sidecar=staged; return true end,
           } end}
-          core={detourCode=function(callback,address,span) callbacks[address]=callback; installs=installs+1 end}
-          ffi={cast=function(kind,value) if value==11 then return function() return filename end end; return value end,
-            string=function(value) return value end}
-          lifecycle=require('mappng.lifecycle'); lifecycle.initialize(ffi,'mapping')
+          CallingConvention={THISCALL=1}
+          core={
+            detourCode=function(callback,address,span) callbacks[address]=callback; installs=installs+1 end,
+            exposeCode=function() return function() return 12 end end,
+            readString=function() return filename..'\0' end,
+          }
+          lifecycle=require('mappng.lifecycle'); lifecycle.initialize('mapping')
           function event(name)
             local r={eax=123}; assert(callbacks[sites[name]](r)==r)
           end
@@ -57,7 +60,7 @@ class Lifecycle(unittest.TestCase):
         self.lua.execute('''
           lifecycle.link('height','h.png'); save('one.map')
           package.loaded['mappng.lifecycle']=nil
-          lifecycle=require('mappng.lifecycle'); lifecycle.initialize(ffi,'mapping')
+          lifecycle=require('mappng.lifecycle'); lifecycle.initialize('mapping')
           assert(not next(lifecycle.names())); load('one.map')
           assert(lifecycle.names().height=='h.png')
         ''')
@@ -95,6 +98,6 @@ class Lifecycle(unittest.TestCase):
     def test_reenable_does_not_duplicate_hooks_or_restore_stale_map(self):
         self.lua.execute('''
           lifecycle.link('height','h.png'); lifecycle.disable(); load('other.map')
-          lifecycle.initialize(ffi,'mapping')
+          lifecycle.initialize('mapping')
           assert(installs==5 and not next(lifecycle.names()))
         ''')
