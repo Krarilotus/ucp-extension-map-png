@@ -84,7 +84,10 @@ function M.resolve()
     if rel>=0x80000000 then rel=rel-0x100000000 end
     r.minimap = {state=site[2], redraw=site[1]+11+rel}
   end)
-  if not redraw then log(WARNING, 'minimap redraw off: '..tostring(redrawError)) end
+  if not redraw then
+    log(ERROR, "Minimap refresh after PNG import is off.")
+    log(WARNING, tostring(redrawError))
+  end
   -- Linked refresh is optional; plain PNG import/export does not need its sites.
   local linked, linkError = pcall(function()
     local function bind(name)

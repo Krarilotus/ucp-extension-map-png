@@ -77,7 +77,7 @@ function mappng:enable(config)
     -- Do not install unusable controls or touch layout globals on another build.
     screens.configure(ok and require('mappng.native').resolve().preview or nil)
     if not ok then
-      log(WARNING, "native PNG controls unavailable on this executable")
+      log(ERROR, "PNG map editor controls are off. The game map layers could not be found.")
       return
     end
 
@@ -86,7 +86,10 @@ function mappng:enable(config)
     local ui = modules.ui:access()
     filedialog.initialize(ffi, ui, state.png)
     local linked, err = pcall(lifecycle.initialize, actions.folder())
-    if not linked then log(WARNING, "linked refresh unavailable: " .. tostring(err)) end
+    if not linked then
+      log(ERROR, "Automatic refresh of linked PNG maps is off.")
+      log(WARNING, tostring(err))
+    end
     local game = ui.game
     local added = buttons.install(ffi, game, onClick)
     if added == 0 then
