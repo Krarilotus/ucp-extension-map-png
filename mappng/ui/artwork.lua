@@ -27,11 +27,11 @@ function M.validate(bytes, width, height)
 end
 
 function M.load(files,sizes)
-  local address, rendererReason = core.AOBScanUnique(
+  local ok, address = pcall(core.AOBScan,
     "55 8B EC 83 EC 28 53 56 57 89 4D E0 C7 45 F8 ? ? ? ? C7 45 EC ? ? ? ?")
-  assert(address, "native interface image renderer: " .. tostring(rendererReason))
-  local formatAddress, formatReason = core.AOBScanUnique("81 3D ? ? ? ? 65 05 00 00 75 40")
-  assert(formatAddress, "display pixel format: " .. tostring(formatReason))
+  assert(ok, "native interface image renderer: not found")
+  local formatOk, formatAddress = pcall(core.AOBScan, "81 3D ? ? ? ? 65 05 00 00 75 40")
+  assert(formatOk, "display pixel format: not found")
   local format = core.readInteger(core.readInteger(formatAddress + 2))
   local ffi = modules.cffi:cffi()
   local suffix = format == 0x565 and ".565.tgx" or ".555.tgx"

@@ -36,8 +36,8 @@ M.patterns = {
 local LINKS = {loadBegin=true, loadDone=true, saveBegin=true, saveDone=true, newMap=true, resource=true}
 local function find(name, pattern)
   local aob = pattern:gsub('I%(', ''):gsub('%)', '')
-  local site, reason = core.AOBScanUnique(aob)
-  assert(site, 'map-png: native binding '..name..': '..tostring(reason))
+  local ok, site = pcall(core.AOBScan, aob)
+  assert(ok, 'map-png: native binding '..name..': not found')
   if pattern:find('(', 1, true) then
     return {utils.AOBExtract(pattern, site, site)}
   end
